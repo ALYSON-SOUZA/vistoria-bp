@@ -18,6 +18,8 @@ import {
   CheckCircle2,
   Plus,
   List,
+  LogOut,
+  ThumbsUp,
 } from "lucide-react"
 import { toast } from "sonner"
 import { generateInspectionNumber } from "@/lib/utils"
@@ -75,12 +77,13 @@ export default function NewInspectionPage() {
   const [portfolios, setPortfolios] = useState<SelectOption[]>([])
   const [managers, setManagers] = useState<SelectOption[]>([])
   const [directorates, setDirectorates] = useState<SelectOption[]>([])
-  const [showSaveModal, setShowSaveModal] = useState(false)
-  const [showSignatureModal, setShowSignatureModal] = useState(false)
+  const [showSignatureFirst, setShowSignatureFirst] = useState(false)
+  const [showNewInspectionPrompt, setShowNewInspectionPrompt] = useState(false)
   const [saving, setSaving] = useState(false)
   const [listening, setListening] = useState(false)
   const [showRecordsList, setShowRecordsList] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const canvasRef2 = useRef<HTMLCanvasElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const current = records[currentIndex] || createEmptyRecord()
@@ -225,28 +228,21 @@ export default function NewInspectionPage() {
     canvas.ontouchmove = null
   }
 
-  function clearSignature() {
-    const canvas = canvasRef.current
+  function clearSignature(canvas: HTMLCanvasElement | null) {
     if (!canvas) return
     const ctx = canvas.getContext("2d")
     if (!ctx) return
     ctx.clearRect(0, 0, canvas.width, canvas.height)
   }
 
-  function saveSignature() {
-    const canvas = canvasRef.current
-    if (!canvas) return
+  function getSignatureData(canvas: HTMLCanvasElement | null): string | null {
+    if (!canvas) return null
     const data = canvas.toDataURL("image/png")
-    if (data.length < 1000) {
-      toast.error("Desenhe sua assinatura antes de salvar")
-      return
-    }
-    updateCurrent("signature", data)
-    setShowSignatureModal(false)
-    toast.success("Assinatura salva")
+    if (data.length < 1000) return null
+    return data
   }
 
-  async function saveCurrentRecord(hasSignature: boolean) {
+  async function saveCurrentRecord(signatureData: string | null) {
     const rec = records[currentIndex]
     if (!rec.type || !rec.room) {
       toast.error("Preencha o tipo e a sala/ambiente")
@@ -266,7 +262,7 @@ export default function NewInspectionPage() {
         directorateId: rec.directorateId ? Number(rec.directorateId) : null,
         occurrence: rec.occurrence,
         photos: rec.photos,
-        signature: hasSignature ? rec.signature : null,
+        signature: signatureData,
         sessionId,
       }
       const res = await fetch("/api/inspections", {
@@ -288,38 +284,49 @@ export default function NewInspectionPage() {
     }
   }
 
-  async function handleNewRecord() {
-    const ok = await saveCurrentRecord(false)
-    if (!ok) return
-
-    setSavedCount((c) => c + 1)
-    setRecords((prev) => [...prev, createEmptyRecord()])
-    setCurrentIndex((prev) => prev + 1)
-    setShowSaveModal(false)
-    toast.success("Registro salvo! Preencha o próximo.")
-  }
-
-  async function handleSaveWithSignature() {
-    const ok = await saveCurrentRecord(true)
-    if (!ok) return
-
-    setSavedCount((c) => c + 1)
-    toast.success("Vistoria concluída com sucesso!")
-    router.push(`/inspections/session/${sessionId}`)
-  }
-
-  async function handleFinalizeSave() {
-    setShowSaveModal(false)
+  function handleFinalizeClick() {
     const rec = records[currentIndex]
     if (!rec.type || !rec.room) {
       toast.error("Preencha o tipo e a sala/ambiente")
       return
     }
-    if (!rec.signature) {
-      setShowSignatureModal(true)
+    setShowSignatureFirst(true)
+  }
+
+  async function handleSignatureConfirm() {
+    const sig = getSignatureData(canvasRef.current)
+    if (!sig) {
+      toast.error("Desenhe sua assinatura antes de confirmar")
       return
     }
-    await handleSaveWithSignature()
+    updateCurrent("signature", sig)
+    setShowSignatureFirst(false)
+
+    const ok = await saveCurrentRecord(sig)
+    if (!ok) return
+
+    setSavedCount((c) => c + 1)
+    setShowNewInspectionPrompt(true)
+  }
+
+  function handleNewInspectionYes() {
+    setShowNewInspectionPrompt(false)
+    const updated = { ...records[currentIndex] }
+    updated.type = "" as any
+    updated.occurrence = ""
+    updated.photos = []
+    updated.signature = null
+    setRecords((prev) => {
+      const next = [...prev]
+      next[currentIndex] = updated
+      return next
+    })
+  }
+
+  function handleNewInspectionNo() {
+    setShowNewInspectionPrompt(false)
+    toast.success("Vistoria concluída com sucesso!")
+    router.push(`/inspections/session/${sessionId}`)
   }
 
   function switchToRecord(index: number) {
@@ -563,7 +570,7 @@ export default function NewInspectionPage() {
           </button>
           <button
             type="button"
-            onClick={() => setShowSaveModal(true)}
+            onClick={handleFinalizeClick}
             className="flex h-11 flex-1 items-center justify-center rounded-xl bg-action-primary text-sm font-bold text-white shadow-lg shadow-action-primary/30"
             style={{ fontFamily: "var(--font-heading)" }}
           >
@@ -572,96 +579,9 @@ export default function NewInspectionPage() {
         </div>
       </div>
 
+      {/* Signature Modal (shown first) */}
       <AnimatePresence>
-        {showSaveModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 px-4 pb-12"
-          >
-            <motion.div
-              initial={{ y: 100, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 100, opacity: 0 }}
-              className="w-full max-w-sm rounded-2xl bg-card p-6 shadow-xl"
-            >
-              <div className="mb-4 text-center">
-                <div className="mx-auto mb-3 flex size-14 items-center justify-center rounded-full bg-action-success/10">
-                  <ClipboardCheck className="size-7 text-action-success" />
-                </div>
-                <h3
-                  className="text-lg font-bold text-foreground"
-                  style={{ fontFamily: "var(--font-heading)" }}
-                >
-                  Finalizar Vistoria
-                </h3>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Escolha uma opção para continuar
-                </p>
-                {savedCount > 0 && (
-                  <p className="mt-1 text-xs font-bold text-action-success">
-                    {savedCount} registro(s) já salvo(s)
-                  </p>
-                )}
-              </div>
-              <div className="space-y-3">
-                <button
-                  type="button"
-                  onClick={handleNewRecord}
-                  disabled={saving}
-                  className="flex w-full items-center gap-3 rounded-xl border border-input bg-background p-3 text-left transition-colors hover:bg-muted disabled:opacity-60"
-                >
-                  <div className="flex size-10 items-center justify-center rounded-lg bg-action-primary/10">
-                    <Plus className="size-5 text-action-primary" />
-                  </div>
-                  <div>
-                    <p
-                      className="text-sm font-semibold text-foreground"
-                      style={{ fontFamily: "var(--font-heading)" }}
-                    >
-                      NOVO REGISTRO
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Salvar e adicionar outro registro
-                    </p>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleFinalizeSave}
-                  disabled={saving}
-                  className="flex w-full items-center gap-3 rounded-xl bg-action-primary p-3 text-left text-white transition-opacity disabled:opacity-60"
-                >
-                  <div className="flex size-10 items-center justify-center rounded-lg bg-white/20">
-                    <Save className="size-5" />
-                  </div>
-                  <div className="flex-1">
-                    <p
-                      className="text-sm font-bold"
-                      style={{ fontFamily: "var(--font-heading)" }}
-                    >
-                      {saving ? "SALVANDO..." : "SALVAR"}
-                    </p>
-                    <p className="text-xs text-white/70">Salvar vistoria e assinar</p>
-                  </div>
-                  <CheckCircle2 className="size-5 text-white/80" />
-                </button>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowSaveModal(false)}
-                className="mt-4 w-full text-center text-xs text-muted-foreground underline"
-              >
-                Voltar
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showSignatureModal && (
+        {showSignatureFirst && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -702,31 +622,76 @@ export default function NewInspectionPage() {
               <div className="flex gap-3">
                 <button
                   type="button"
-                  onClick={clearSignature}
+                  onClick={() => { clearSignature(canvasRef.current); setShowSignatureFirst(false) }}
                   className="flex h-10 flex-1 items-center justify-center rounded-xl border border-input bg-background text-xs font-medium text-muted-foreground"
                   style={{ fontFamily: "var(--font-heading)" }}
                 >
-                  LIMPAR
+                  CANCELAR
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    saveSignature()
-                    setShowSignatureModal(false)
-                  }}
-                  className="flex h-10 flex-1 items-center justify-center rounded-xl bg-action-primary text-xs font-bold text-white"
+                  onClick={handleSignatureConfirm}
+                  disabled={saving}
+                  className="flex h-10 flex-1 items-center justify-center rounded-xl bg-action-primary text-xs font-bold text-white disabled:opacity-60"
                   style={{ fontFamily: "var(--font-heading)" }}
                 >
-                  CONFIRMAR
+                  {saving ? "SALVANDO..." : "FINALIZAR"}
                 </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowSignatureModal(false)}
-                className="mt-4 w-full text-center text-xs text-muted-foreground underline"
-              >
-                Cancelar
-              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Nova Vistoria? Prompt */}
+      <AnimatePresence>
+        {showNewInspectionPrompt && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 px-4 pb-12"
+          >
+            <motion.div
+              initial={{ y: 100, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 100, opacity: 0 }}
+              className="w-full max-w-sm rounded-2xl bg-card p-6 shadow-xl"
+            >
+              <div className="mb-4 text-center">
+                <div className="mx-auto mb-3 flex size-14 items-center justify-center rounded-full bg-action-success/10">
+                  <ClipboardCheck className="size-7 text-action-success" />
+                </div>
+                <h3
+                  className="text-lg font-bold text-foreground"
+                  style={{ fontFamily: "var(--font-heading)" }}
+                >
+                  Vistoria Salva!
+                </h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Deseja fazer outra vistoria?
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleNewInspectionNo}
+                  className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-input bg-card text-sm font-medium text-muted-foreground"
+                  style={{ fontFamily: "var(--font-heading)" }}
+                >
+                  <LogOut className="size-4" />
+                  NÃO
+                </button>
+                <button
+                  type="button"
+                  onClick={handleNewInspectionYes}
+                  className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-action-primary text-sm font-bold text-white shadow-lg shadow-action-primary/30"
+                  style={{ fontFamily: "var(--font-heading)" }}
+                >
+                  <ThumbsUp className="size-4" />
+                  SIM
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

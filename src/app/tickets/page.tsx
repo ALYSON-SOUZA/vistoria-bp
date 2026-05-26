@@ -40,7 +40,7 @@ interface TicketItem {
   expectedCompletionDate?: string
   status: string
   createdAt: string
-  inspection?: { inspectionNumber: string; room: string }
+  inspection?: { id: number; inspectionNumber: string; room: string }
   createdBy?: { fullName: string }
 }
 
@@ -232,7 +232,13 @@ export default function TicketsPage() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.05 }}
-                  onClick={() => setSelectedTicket(ticket)}
+                  onClick={() => {
+                    if (ticket.inspection?.id) {
+                      router.push(`/inspections/${ticket.inspection.id}`)
+                    } else {
+                      setSelectedTicket(ticket)
+                    }
+                  }}
                   className="cursor-pointer rounded-xl bg-card ring-1 ring-foreground/10 transition-all hover:ring-2 hover:ring-ring"
                 >
                   <div className="p-3">
@@ -420,25 +426,28 @@ export default function TicketsPage() {
                   className="h-9 w-full rounded-lg border border-input bg-background pl-8 pr-3 text-xs outline-none ring-0 placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20"
                 />
               </div>
-              {searchInspection && filteredInspections.length > 0 && (
-                <div className="mt-1 max-h-32 overflow-y-auto rounded-lg border border-input bg-background">
-                  {filteredInspections.slice(0, 10).map((insp) => (
-                    <button
-                      key={insp.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedInspection(insp)
-                        setSearchInspection(insp.inspectionNumber)
-                      }}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-muted"
-                    >
-                      <FileText className="size-3.5 text-muted-foreground" />
-                      <span className="font-medium">{insp.inspectionNumber}</span>
-                      <span className="text-muted-foreground">— {insp.room}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
+              <div className="mt-1 max-h-40 overflow-y-auto rounded-lg border border-input bg-background">
+                {(searchInspection ? filteredInspections : inspections).slice(0, 15).map((insp) => (
+                  <button
+                    key={insp.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedInspection(insp)
+                      setSearchInspection(insp.inspectionNumber)
+                    }}
+                    className={`flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-muted ${
+                      selectedInspection?.id === insp.id ? "bg-action-primary/10" : ""
+                    }`}
+                  >
+                    <FileText className="size-3.5 text-muted-foreground shrink-0" />
+                    <span className="font-medium truncate">{insp.inspectionNumber}</span>
+                    <span className="text-muted-foreground truncate">— {insp.room}</span>
+                  </button>
+                ))}
+                {inspections.length === 0 && (
+                  <p className="px-3 py-2 text-xs text-muted-foreground">Nenhuma vistoria encontrada</p>
+                )}
+              </div>
               {selectedInspection && (
                 <div className="mt-1 flex items-center gap-2 rounded-lg bg-action-success/10 px-3 py-1.5">
                   <Building2 className="size-3.5 text-action-success" />

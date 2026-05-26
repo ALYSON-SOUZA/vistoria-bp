@@ -6,7 +6,7 @@ export async function GET() {
   try {
     const tickets = await prisma.ticket.findMany({
       include: {
-        inspection: { select: { inspectionNumber: true, room: true } },
+        inspection: { select: { id: true, inspectionNumber: true, room: true } },
         createdBy: { select: { fullName: true } },
       },
       orderBy: { createdAt: "desc" },

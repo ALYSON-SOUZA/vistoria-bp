@@ -335,63 +335,82 @@ export default function ReportPage() {
           </motion.div>
         )}
 
-        {inspection.images.length > 0 && (
+        {(inspection.images.length > 0 || inspection.signature) && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.12 }}
             className="mt-4"
           >
-            <div className="mb-2 flex items-center gap-2 px-1">
+            <div className="mb-3 flex items-center gap-2 px-1">
               <ImageIcon className="size-4 text-muted-foreground" />
               <span
                 className="text-xs font-bold text-muted-foreground"
                 style={{ fontFamily: "var(--font-sans)" }}
               >
-                FOTOS ({inspection.images.length})
+                FOTOS E ASSINATURA
               </span>
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              {inspection.images.map((img) => (
-                <div
-                  key={img.id}
-                  className="aspect-square overflow-hidden rounded-xl bg-muted ring-1 ring-foreground/10"
-                >
-                  <img
-                    src={img.imageUrl}
-                    alt={`Foto ${img.sequenceNumber}`}
-                    className="size-full object-cover"
-                  />
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
 
-        {inspection.signature && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.16 }}
-            className="mt-4 rounded-xl bg-card p-4 ring-1 ring-foreground/10"
-          >
-            <div className="mb-2 flex items-center gap-2">
-              <PenLine className="size-4 text-muted-foreground" />
-              <span
-                className="text-xs font-bold text-muted-foreground"
-                style={{ fontFamily: "var(--font-sans)" }}
-              >
-                ASSINATURA
-              </span>
+            {/* Miniaturas lado a lado */}
+            <div className="flex gap-3">
+              {inspection.images.length > 0 && (
+                <div className="flex-1 space-y-2">
+                  {inspection.images.map((img) => (
+                    <div
+                      key={img.id}
+                      className="overflow-hidden rounded-lg bg-muted ring-1 ring-foreground/10"
+                    >
+                      <img
+                        src={img.imageUrl}
+                        alt={`Foto ${img.sequenceNumber}`}
+                        className="w-full object-cover"
+                        style={{ maxHeight: 100 }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+              {inspection.signature && (
+                <div className="flex-1 rounded-xl bg-card p-3 ring-1 ring-foreground/10">
+                  <div className="mb-1 flex items-center gap-1.5">
+                    <PenLine className="size-3.5 text-muted-foreground" />
+                    <span className="text-[11px] font-bold text-muted-foreground">ASSINATURA</span>
+                  </div>
+                  <img
+                    src={inspection.signature.managerSignature}
+                    alt="Assinatura"
+                    className="max-h-20 rounded-lg bg-white"
+                  />
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {formatDate(inspection.signature.signedAt)}
+                  </p>
+                </div>
+              )}
             </div>
-            <img
-              src={inspection.signature.managerSignature}
-              alt="Assinatura"
-              className="max-h-20 rounded-lg bg-white"
-            />
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              Assinado em {formatDate(inspection.signature.signedAt)}
-            </p>
+
+            {/* Fotos grandes abaixo */}
+            {inspection.images.length > 0 && (
+              <div className="mt-4 space-y-4">
+                {inspection.images.map((img) => (
+                  <div key={img.id} className="rounded-xl bg-card overflow-hidden ring-1 ring-foreground/10">
+                    <img
+                      src={img.imageUrl}
+                      alt={`Foto ${img.sequenceNumber}`}
+                      className="w-full object-contain bg-black/5"
+                      style={{ maxHeight: 300 }}
+                    />
+                    <div className="flex items-center gap-2 px-3 py-2 border-t border-border">
+                      <Building2 className="size-3.5 text-muted-foreground" />
+                      <span className="text-xs font-medium text-foreground">{inspection.room}</span>
+                      <span className="text-[11px] text-muted-foreground">
+                        {inspection.type === "manutencao" ? "Manutenção" : "Limpeza"}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </motion.div>
         )}
 
