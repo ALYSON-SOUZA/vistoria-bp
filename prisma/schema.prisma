@@ -1,0 +1,157 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Role {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+
+  users User[]
+}
+
+model Branch {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+
+  users       User[]
+  inspections Inspection[]
+}
+
+model Department {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+
+  users       User[]
+  inspections Inspection[]
+}
+
+model Portfolio {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+
+  inspections Inspection[]
+  users       User[]
+}
+
+model Directorate {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+
+  users       User[]
+  inspections Inspection[]
+}
+
+model Manager {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+
+  users       User[]
+  inspections Inspection[]
+
+  @@map("Maneger")
+}
+
+model User {
+  id             Int          @id @default(autoincrement())
+  fullName       String       @map("full_name")
+  nickname       String?
+  cpf            String?      @unique
+  phone          String?
+  roleId         Int?         @map("role_id")
+  email          String       @unique
+  password       String
+  branchId       Int?         @map("branch_id")
+  managerId      Int?         @map("manager_id")
+  departmentId   Int?         @map("department_id")
+  portfolioId    Int?         @map("portfolio_id")
+  directorateId  Int?         @map("directorate_id")
+  avatar         String?
+  isTempPassword Boolean      @default(false) @map("is_temp_password")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  role        Role?        @relation(fields: [roleId], references: [id])
+  branch      Branch?      @relation(fields: [branchId], references: [id])
+  manager     Manager?     @relation(fields: [managerId], references: [id])
+  department  Department?  @relation(fields: [departmentId], references: [id])
+  portfolio   Portfolio?   @relation(fields: [portfolioId], references: [id])
+  directorate Directorate? @relation(fields: [directorateId], references: [id])
+
+  inspections Inspection[]
+  tickets     Ticket[]
+
+  @@map("users")
+}
+
+model Inspection {
+  id               Int      @id @default(autoincrement())
+  inspectionNumber String   @unique @map("inspection_number")
+  type             String
+  room             String
+  branchId         Int?     @map("branch_id")
+  departmentId     Int?     @map("department_id")
+  portfolioId      Int?     @map("portfolio_id")
+  managerId        Int?     @map("manager_id")
+  directorateId    Int?     @map("directorate_id")
+  occurrence       String?
+  occurrenceAudio  String?  @map("occurrence_audio")
+  createdById      Int      @map("created_by")
+  createdAt        DateTime @default(now()) @map("created_at")
+  status           String   @default("pending")
+  sessionId        String?  @map("session_id")
+
+  branch      Branch?            @relation(fields: [branchId], references: [id])
+  department  Department?        @relation(fields: [departmentId], references: [id])
+  portfolio   Portfolio?         @relation(fields: [portfolioId], references: [id])
+  managerRel  Manager?           @relation(fields: [managerId], references: [id])
+  directorate Directorate?       @relation(fields: [directorateId], references: [id])
+  createdBy   User               @relation(fields: [createdById], references: [id])
+  images      InspectionImage[]
+  signature   InspectionSignature?
+  tickets     Ticket[]
+
+  @@map("inspections")
+}
+
+model InspectionImage {
+  id             Int    @id @default(autoincrement())
+  inspectionId   Int    @map("inspection_id")
+  imageUrl       String @map("image_url")
+  sequenceNumber Int    @map("sequence_number")
+
+  inspection Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+
+  @@map("inspection_images")
+}
+
+model InspectionSignature {
+  id               Int      @id @default(autoincrement())
+  inspectionId     Int      @unique @map("inspection_id")
+  managerSignature String   @map("manager_signature")
+  signedAt         DateTime @default(now()) @map("signed_at")
+
+  inspection Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+
+  @@map("inspection_signatures")
+}
+
+model Ticket {
+  id                     Int      @id @default(autoincrement())
+  ticketNumber           String   @unique @map("ticket_number")
+  inspectionId           Int      @map("inspection_id")
+  description            String?
+  expectedCompletionDate DateTime? @map("expected_completion_date")
+  createdById            Int      @map("created_by")
+  createdAt              DateTime @default(now()) @map("created_at")
+  status                 String   @default("open")
+
+  inspection Inspection @relation(fields: [inspectionId], references: [id])
+  createdBy  User       @relation(fields: [createdById], references: [id])
+
+  @@map("tickets")
+}
