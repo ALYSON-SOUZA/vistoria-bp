@@ -366,7 +366,7 @@ export default function NewInspectionPage() {
           <div className="flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1">
             <User className="size-3.5 text-primary" />
             <span className="text-xs font-medium text-primary">
-              {user?.nickname || user?.fullName || "Inspetor"}
+              {user?.nickname || user?.fullName || "Vistoriador"}
             </span>
           </div>
         </div>

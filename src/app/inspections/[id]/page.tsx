@@ -183,7 +183,7 @@ export default function InspectionDetailPage() {
             <DetailRow icon={FolderOpen} label="Carteira" value={inspection.portfolio?.name || "—"} />
             <DetailRow icon={User} label="Gestor" value={inspection.managerRel?.name || "—"} />
             <DetailRow icon={MapPin} label="Diretoria" value={inspection.directorate?.name || "—"} />
-            <DetailRow icon={User} label="Inspetor" value={inspection.createdBy.fullName} />
+            <DetailRow icon={User} label="Vistoriador" value={inspection.createdBy.fullName} />
             <DetailRow icon={Calendar} label="Data" value={formatDate(inspection.createdAt)} />
           </div>
         </motion.div>

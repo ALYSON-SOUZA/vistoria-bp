@@ -157,7 +157,7 @@ export default function InspectionSessionPage() {
           </div>
 
           <div className="divide-y">
-            <DetailRow icon={User} label="Inspetor" value={firstInsp.createdBy.fullName} />
+            <DetailRow icon={User} label="Vistoriador" value={firstInsp.createdBy.fullName} />
             <DetailRow icon={Calendar} label="Início" value={formatDate(firstInsp.createdAt)} />
             <DetailRow icon={ClipboardCheck} label="Registros" value={`${totalRecords} registro(s)`} />
           </div>
