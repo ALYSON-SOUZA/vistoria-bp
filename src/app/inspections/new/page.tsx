@@ -42,6 +42,7 @@ interface RecordItem {
   departmentId: string
   portfolioId: string
   managerId: string
+  roomManagerId: string
   directorateId: string
   occurrence: string
   photos: string[]
@@ -56,6 +57,7 @@ function createEmptyRecord(): RecordItem {
     departmentId: "",
     portfolioId: "",
     managerId: "",
+    roomManagerId: "",
     directorateId: "",
     occurrence: "",
     photos: [],
@@ -259,6 +261,7 @@ export default function NewInspectionPage() {
         departmentId: rec.departmentId ? Number(rec.departmentId) : null,
         portfolioId: rec.portfolioId ? Number(rec.portfolioId) : null,
         managerId: rec.managerId ? Number(rec.managerId) : null,
+        roomManagerId: rec.roomManagerId ? Number(rec.roomManagerId) : null,
         directorateId: rec.directorateId ? Number(rec.directorateId) : null,
         occurrence: rec.occurrence,
         photos: rec.photos,
@@ -451,6 +454,12 @@ export default function NewInspectionPage() {
               style={{ fontFamily: "var(--font-sans)" }}
             />
           </div>
+          <SelectField
+            label="GESTOR DA SALA"
+            value={current.roomManagerId}
+            options={managers}
+            onChange={(v) => updateCurrent("roomManagerId", v)}
+          />
           <SelectField
             label="FILIAL"
             value={current.branchId}

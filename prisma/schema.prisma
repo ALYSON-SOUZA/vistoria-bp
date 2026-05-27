@@ -51,8 +51,9 @@ model Manager {
   id   Int    @id @default(autoincrement())
   name String @unique
 
-  users       User[]
-  inspections Inspection[]
+  users          User[]
+  inspections    Inspection[] @relation("inspectorManager")
+  roomInspections Inspection[] @relation("roomManager")
 
   @@map("Maneger")
 }
@@ -97,6 +98,7 @@ model Inspection {
   departmentId     Int?     @map("department_id")
   portfolioId      Int?     @map("portfolio_id")
   managerId        Int?     @map("manager_id")
+  roomManagerId    Int?     @map("room_manager_id")
   directorateId    Int?     @map("directorate_id")
   occurrence       String?
   occurrenceAudio  String?  @map("occurrence_audio")
@@ -108,7 +110,8 @@ model Inspection {
   branch      Branch?            @relation(fields: [branchId], references: [id])
   department  Department?        @relation(fields: [departmentId], references: [id])
   portfolio   Portfolio?         @relation(fields: [portfolioId], references: [id])
-  managerRel  Manager?           @relation(fields: [managerId], references: [id])
+  managerRel  Manager?           @relation("inspectorManager", fields: [managerId], references: [id])
+  roomManager Manager?           @relation("roomManager", fields: [roomManagerId], references: [id])
   directorate Directorate?       @relation(fields: [directorateId], references: [id])
   createdBy   User               @relation(fields: [createdById], references: [id])
   images      InspectionImage[]

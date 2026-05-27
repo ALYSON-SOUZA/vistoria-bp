@@ -24,7 +24,6 @@ import {
   CheckCircle2,
   Link2,
 } from "lucide-react"
-import { FloatingNav } from "@/components/floating-nav"
 import { cn, formatDate } from "@/lib/utils"
 
 interface InspectionImage {
@@ -52,6 +51,7 @@ interface Inspection {
   department: { name: string } | null
   managerRel: { name: string } | null
   directorate: { name: string } | null
+  roomManager: { name: string } | null
   createdBy: { fullName: string; nickname: string | null }
   images: InspectionImage[]
   signature: InspectionSignature | null
@@ -123,6 +123,7 @@ export default function ReportSessionPage() {
       ["Carteira", first.portfolio?.name || "—"],
       ["Departamento", first.department?.name || "—"],
       ["Gestor", first.managerRel?.name || "—"],
+      ["Gestor da Sala", first.roomManager?.name || "—"],
       ["Diretoria", first.directorate?.name || "—"],
     ]
 
@@ -146,7 +147,7 @@ export default function ReportSessionPage() {
       doc.setFontSize(8)
       doc.text(infoFields[i][1].length > 22 ? infoFields[i][1].substring(0, 21) + "..." : infoFields[i][1], cx + 3, cy + 10)
     }
-    y += 3 * 14 + 4
+    y += 4 * 14 + 4
 
     for (const insp of inspections) {
       if (y > 265) { doc.addPage(); y = m }
@@ -195,14 +196,17 @@ export default function ReportSessionPage() {
         if (y > 275) { doc.addPage(); y = m }
         try {
           const sd = await fetchImageAsBase64(insp.signature.managerSignature)
-          doc.setFillColor(37, 42, 52)
+          doc.setFillColor(248, 248, 248)
           doc.roundedRect(m, y, pw - m * 2, 22, 3, 3, "F")
-          doc.setTextColor(8, 217, 214)
+          doc.setDrawColor(198, 198, 204)
+          doc.setLineWidth(0.3)
+          doc.roundedRect(m, y, pw - m * 2, 22, 3, 3, "S")
+          doc.setTextColor(37, 42, 52)
           doc.setFont("helvetica", "bold")
           doc.setFontSize(7)
           doc.text("Vistoria Assinada", m + 4, y + 5)
           doc.addImage(sd, "PNG", m + 4, y + 8, 30, 11)
-          doc.setTextColor(255, 255, 255)
+          doc.setTextColor(118, 119, 124)
           doc.setFont("helvetica", "normal")
           doc.setFontSize(5)
           doc.text("Documento validado digitalmente", m + 38, y + 8)
@@ -295,6 +299,7 @@ export default function ReportSessionPage() {
               ["Carteira", first.portfolio?.name || "—"],
               ["Departamento", first.department?.name || "—"],
               ["Gestor", first.managerRel?.name || "—"],
+              ["Gestor da Sala", first.roomManager?.name || "—"],
               ["Diretoria", first.directorate?.name || "—"],
             ].map(([label, value], i) => (
               <div key={i} className="bg-[#F2F4F7] rounded-lg p-3 border-l-4 border-[#08D9D6] shadow-sm">
@@ -363,14 +368,14 @@ export default function ReportSessionPage() {
 
               {/* Signature */}
               {insp.signature && (
-                <div className="bg-[#252A34] rounded-lg p-4 flex items-center gap-4">
+                <div className="bg-white rounded-lg p-4 flex items-center gap-4 border border-[#c6c6cc]/20 shadow-sm">
                   <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-[#08D9D6] text-[#252A34] shadow-lg rotate-3">
                     <PenLine className="size-6" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-sm font-bold text-white">Vistoria Assinada</h3>
-                    <p className="text-xs text-white/70">Documento validado digitalmente via biometria e certificação BP.</p>
-                    <img src={insp.signature.managerSignature} alt="Assinatura" className="mt-2 max-h-10 rounded bg-white/10" />
+                    <h3 className="text-sm font-bold text-[#252A34]">Vistoria Assinada</h3>
+                    <p className="text-xs text-[#76777c]">Documento validado digitalmente via biometria e certificação BP.</p>
+                    <img src={insp.signature.managerSignature} alt="Assinatura" className="mt-2 max-h-10 rounded border border-[#c6c6cc]/30 bg-white" />
                   </div>
                 </div>
               )}
@@ -450,7 +455,6 @@ export default function ReportSessionPage() {
         </motion.div>
       )}
 
-      <FloatingNav />
     </div>
   )
 }

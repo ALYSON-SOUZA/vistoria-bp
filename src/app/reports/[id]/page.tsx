@@ -26,7 +26,6 @@ import {
   CheckCircle2,
   Link2,
 } from "lucide-react"
-import { FloatingNav } from "@/components/floating-nav"
 import { cn, formatDate } from "@/lib/utils"
 
 interface InspectionImage {
@@ -63,6 +62,7 @@ interface Inspection {
   department: { name: string } | null
   managerRel: { name: string } | null
   directorate: { name: string } | null
+  roomManager: { name: string } | null
   createdBy: { fullName: string; nickname: string | null }
   images: InspectionImage[]
   signature: InspectionSignature | null
@@ -148,6 +148,7 @@ export default function ReportPage() {
       ["Carteira", inspection.portfolio?.name || "—"],
       ["Departamento", inspection.department?.name || "—"],
       ["Gestor", inspection.managerRel?.name || "—"],
+      ["Gestor da Sala", inspection.roomManager?.name || "—"],
       ["Diretoria", inspection.directorate?.name || "—"],
     ]
 
@@ -175,7 +176,7 @@ export default function ReportPage() {
       const val = infoFields[i][1]
       doc.text(val.length > 22 ? val.substring(0, 21) + "..." : val, cx + 3, cy + 10)
     }
-    y += 3 * 14 + 4
+    y += 4 * 14 + 4
 
     // === OCORRÊNCIA ===
     if (inspection.occurrence) {
@@ -226,14 +227,17 @@ export default function ReportPage() {
       if (y > 270) { doc.addPage(); y = m }
       try {
         const sd = await fetchImageAsBase64(inspection.signature.managerSignature)
-        doc.setFillColor(37, 42, 52)
+        doc.setFillColor(248, 248, 248)
         doc.roundedRect(m, y, pw - m * 2, 25, 3, 3, "F")
-        doc.setTextColor(8, 217, 214)
+        doc.setDrawColor(198, 198, 204)
+        doc.setLineWidth(0.3)
+        doc.roundedRect(m, y, pw - m * 2, 25, 3, 3, "S")
+        doc.setTextColor(37, 42, 52)
         doc.setFont(bold, "bold")
         doc.setFontSize(8)
         doc.text("Vistoria Assinada", m + 4, y + 6)
         doc.addImage(sd, "PNG", m + 4, y + 9, 35, 13)
-        doc.setTextColor(255, 255, 255)
+        doc.setTextColor(118, 119, 124)
         doc.setFont(normal, "normal")
         doc.setFontSize(6)
         doc.text("Documento validado digitalmente", m + 44, y + 10)
@@ -340,6 +344,7 @@ export default function ReportPage() {
               ["Carteira", inspection.portfolio?.name || "—", Briefcase],
               ["Departamento", inspection.department?.name || "—", Building2],
               ["Gestor", inspection.managerRel?.name || "—", User],
+              ["Gestor da Sala", inspection.roomManager?.name || "—", User],
               ["Diretoria", inspection.directorate?.name || "—", MapPin],
             ].map(([label, value, Icon], i) => (
               <div key={i} className="bg-[#F2F4F7] rounded-lg p-3 border-l-4 border-[#08D9D6] shadow-sm">
@@ -393,14 +398,14 @@ export default function ReportPage() {
 
         {/* Signature */}
         {inspection.signature && (
-          <section className="bg-[#252A34] rounded-lg p-4 flex items-center gap-4">
+          <section className="bg-white rounded-lg p-4 flex items-center gap-4 border border-[#c6c6cc]/20 shadow-sm">
             <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-[#08D9D6] text-[#252A34] shadow-lg rotate-3">
               <PenLine className="size-6" />
             </div>
             <div className="flex-1">
-              <h3 className="text-sm font-bold text-white">Vistoria Assinada</h3>
-              <p className="text-xs text-white/70">Documento validado digitalmente via biometria e certificação BP.</p>
-              <img src={inspection.signature.managerSignature} alt="Assinatura" className="mt-2 max-h-10 rounded bg-white/10" />
+              <h3 className="text-sm font-bold text-[#252A34]">Vistoria Assinada</h3>
+              <p className="text-xs text-[#76777c]">Documento validado digitalmente via biometria e certificação BP.</p>
+              <img src={inspection.signature.managerSignature} alt="Assinatura" className="mt-2 max-h-10 rounded border border-[#c6c6cc]/30 bg-white" />
             </div>
           </section>
         )}
@@ -476,7 +481,6 @@ export default function ReportPage() {
         </div>
       </div>
 
-      <FloatingNav />
     </div>
   )
 }

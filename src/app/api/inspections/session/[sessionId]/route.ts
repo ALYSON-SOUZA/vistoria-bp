@@ -13,6 +13,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ sess
         branch: true,
         department: true,
         managerRel: true,
+        roomManager: true,
         directorate: true,
         createdBy: { select: { fullName: true, nickname: true } },
         tickets: {

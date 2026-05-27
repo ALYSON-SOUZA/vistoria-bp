@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     if (!userId) return NextResponse.json({ error: "Não autenticado" }, { status: 401 })
 
     const body = await request.json()
-    const { inspectionNumber, type, room, branchId, departmentId, portfolioId, managerId, directorateId, occurrence, photos, signature, sessionId } = body
+    const { inspectionNumber, type, room, branchId, departmentId, portfolioId, managerId, roomManagerId, directorateId, occurrence, photos, signature, sessionId } = body
 
     const inspection = await prisma.inspection.create({
       data: {
@@ -41,6 +41,7 @@ export async function POST(request: Request) {
         departmentId: departmentId || null,
         portfolioId: portfolioId || null,
         managerId: managerId || null,
+        roomManagerId: roomManagerId || null,
         directorateId: directorateId || null,
         occurrence: occurrence || null,
         sessionId: sessionId || null,
