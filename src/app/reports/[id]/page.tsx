@@ -121,6 +121,8 @@ export default function ReportPage() {
     doc.text(inspection.inspectionNumber, pw / 2, y, { align: "center" })
     y += 7
 
+    const firstNames = inspection.roomManager?.name?.split(" ")[0] || "—"
+
     doc.setFillColor(8, 217, 214)
     doc.setFontSize(7)
     const badgeW = doc.getTextWidth(" CONFORME ") + 6
@@ -128,12 +130,14 @@ export default function ReportPage() {
     doc.setTextColor(37, 42, 52)
     doc.setFont(bold, "bold")
     doc.text("CONFORME", pw / 2, y + 1.5, { align: "center" })
-    y += 10
+    y += 9
 
     doc.setTextColor(118, 119, 124)
     doc.setFont(normal, "normal")
-    doc.setFontSize(7)
-    doc.text(`Data: ${formatDate(inspection.createdAt)}   |   Vistoriador: ${inspection.createdBy.fullName}`, pw / 2, y, { align: "center" })
+    doc.setFontSize(6.5)
+    doc.text(`Filial: ${inspection.branch?.name || "—"}   |   ${formatDate(inspection.createdAt)}   |   Sala: ${inspection.room}   |   Gestor(a): ${firstNames}`, pw / 2, y, { align: "center" })
+    y += 4.5
+    doc.text(`Vistoriador: ${inspection.createdBy.fullName}   |   ${inspection.department?.name || "—"}   |   ${inspection.portfolio?.name || "—"}   |   ${inspection.managerRel?.name || "—"}   |   ${inspection.directorate?.name || "—"}`, pw / 2, y, { align: "center" })
     y += 6
 
     // === DIVIDER ===
@@ -180,23 +184,25 @@ export default function ReportPage() {
 
     // === OCORRÊNCIA ===
     if (inspection.occurrence) {
-      doc.setFillColor(37, 42, 52)
-      doc.roundedRect(m, y, pw - m * 2, 18, 3, 3, "F")
-      doc.setTextColor(97, 244, 253)
+      doc.setFillColor(242, 244, 247)
+      doc.roundedRect(m, y, pw - m * 2, 20, 3, 3, "F")
+      doc.setDrawColor(8, 217, 214)
+      doc.setLineWidth(0.6)
+      doc.line(m, y, m, y + 20)
+      doc.setTextColor(37, 42, 52)
       doc.setFont(bold, "bold")
       doc.setFontSize(8)
       doc.text("OCORRÊNCIA", m + 4, y + 5)
-      doc.setTextColor(149, 155, 170)
+      doc.setTextColor(118, 119, 124)
       doc.setFont(normal, "normal")
       doc.setFontSize(7)
-      const lines = doc.splitTextToSize(inspection.occurrence, pw - m * 2 - 8)
-      const maxLines = 2
-      const short = lines.slice(0, maxLines)
+      const lines = doc.splitTextToSize(inspection.occurrence, pw - m * 2 - 12)
+      const short = lines.slice(0, 3)
       doc.text(short, m + 4, y + 12)
-      y += 22
+      y += 24
     }
 
-    // === TIPO + FOTOS ===
+    // === TIPO ===
     doc.setDrawColor(8, 217, 214)
     doc.setLineWidth(0.6)
     doc.line(m, y, m, y + 10)
@@ -205,22 +211,6 @@ export default function ReportPage() {
     doc.setFontSize(10)
     doc.text(inspection.type === "manutencao" ? "MANUTENÇÃO" : "LIMPEZA", m + 5, y + 4)
     y += 12
-
-    if (inspection.images.length > 0) {
-      const s = 28, g = 2
-      const perRow = Math.floor((pw - m * 2) / (s + g))
-      let x = m
-      for (let i = 0; i < Math.min(inspection.images.length, 6); i++) {
-        if (y > 275) { doc.addPage(); y = m }
-        try {
-          const d = await fetchImageAsBase64(inspection.images[i].imageUrl)
-          doc.addImage(d, "JPEG", x, y, s, s)
-        } catch {}
-        x += s + g
-        if ((i + 1) % perRow === 0) { y += s + g; x = m }
-      }
-      if (x !== m) y += s + g
-    }
 
     // === ASSINATURA ===
     if (inspection.signature) {
@@ -265,6 +255,33 @@ export default function ReportPage() {
         doc.text(`- ${tn}`, m, y)
         y += 4
       }
+    }
+
+    // === FOTOS ===
+    if (inspection.images.length > 0) {
+      if (y > 250) { doc.addPage(); y = m }
+      doc.setDrawColor(198, 198, 204)
+      doc.line(m, y, pw - m, y)
+      y += 5
+      doc.setTextColor(37, 42, 52)
+      doc.setFont(bold, "bold")
+      doc.setFontSize(10)
+      doc.text("Fotos", m, y)
+      y += 8
+
+      const s = 50, g = 4
+      const perRow = Math.floor((pw - m * 2) / (s + g))
+      let x = m
+      for (let i = 0; i < inspection.images.length; i++) {
+        if (y > 270) { doc.addPage(); y = m; x = m }
+        try {
+          const d = await fetchImageAsBase64(inspection.images[i].imageUrl)
+          doc.addImage(d, "JPEG", x, y, s, s)
+        } catch {}
+        x += s + g
+        if ((i + 1) % perRow === 0) { y += s + g; x = m }
+      }
+      if (x !== m) y += s + g
     }
 
     doc.save(`relatorio-${inspection.inspectionNumber}.pdf`)
@@ -329,7 +346,10 @@ export default function ReportPage() {
               {inspection.status === "conforme" || inspection.status === "compliant" ? "Conforme" : "Não Conforme"}
             </span>
             <p className="text-xs text-[#76777c] mt-2">
-              {formatDate(inspection.createdAt)} &mdash; {inspection.createdBy.fullName}
+              Filial: {inspection.branch?.name || "—"} &mdash; {formatDate(inspection.createdAt)} &mdash; Sala: {inspection.room} &mdash; Gestor(a): {inspection.roomManager?.name?.split(" ")[0] || "—"}
+            </p>
+            <p className="text-xs text-[#76777c]">
+              {inspection.createdBy.fullName} &mdash; {inspection.department?.name || "—"} &mdash; {inspection.portfolio?.name || "—"} &mdash; {inspection.managerRel?.name || "—"} &mdash; {inspection.directorate?.name || "—"}
             </p>
           </div>
           <hr className="border-[#c6c6cc]/50" />
@@ -357,23 +377,16 @@ export default function ReportPage() {
 
         {/* Occurrence */}
         {inspection.occurrence && (
-          <section className="bg-[#252A34] rounded-lg p-4 relative overflow-hidden">
-            <div className="relative z-10">
-              <div className="flex items-center gap-2 mb-2">
-                <AlertCircle className="size-4 text-[#61F4FD]" />
-                <h3 className="text-sm font-bold text-[#61F4FD]">Ocorrência</h3>
-              </div>
-              <p className="text-xs text-[#959BAA] leading-relaxed">{inspection.occurrence}</p>
+          <section className="bg-[#F2F4F7] rounded-lg p-4 border-l-4 border-[#08D9D6] shadow-sm">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertCircle className="size-4 text-[#252A34]" />
+              <h3 className="text-sm font-bold text-[#252A34]">Ocorrência</h3>
             </div>
-            <div className="absolute right-0 top-0 w-32 h-full opacity-5 pointer-events-none">
-              <svg className="w-full h-full text-white fill-current" viewBox="0 0 100 100">
-                <path d="M0 0 L100 100 M20 0 L100 80 M40 0 L100 60" stroke="currentColor" strokeWidth="2" />
-              </svg>
-            </div>
+            <p className="text-xs text-[#76777c] leading-relaxed">{inspection.occurrence}</p>
           </section>
         )}
 
-        {/* Type + Photos */}
+        {/* Type */}
         <section>
           <div className="flex items-center gap-2 mb-3">
             <div className="w-1 h-8 bg-[#08D9D6] rounded-full" />
@@ -381,19 +394,6 @@ export default function ReportPage() {
               {inspection.type === "manutencao" ? "Manutenção" : "Limpeza"}
             </h3>
           </div>
-
-          {inspection.images.length > 0 && (
-            <div className="grid grid-cols-4 gap-2 mb-3">
-              {inspection.images.slice(0, 8).map((img) => (
-                <img
-                  key={img.id}
-                  src={img.imageUrl}
-                  alt=""
-                  className="aspect-square rounded-lg object-cover border border-[#c6c6cc]/30"
-                />
-              ))}
-            </div>
-          )}
         </section>
 
         {/* Signature */}
@@ -406,6 +406,26 @@ export default function ReportPage() {
               <h3 className="text-sm font-bold text-[#252A34]">Vistoria Assinada</h3>
               <p className="text-xs text-[#76777c]">Documento validado digitalmente via biometria e certificação BP.</p>
               <img src={inspection.signature.managerSignature} alt="Assinatura" className="mt-2 max-h-10 rounded border border-[#c6c6cc]/30 bg-white" />
+            </div>
+          </section>
+        )}
+
+        {/* Photos */}
+        {inspection.images.length > 0 && (
+          <section>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-1 h-8 bg-[#08D9D6] rounded-full" />
+              <h3 className="text-base font-bold text-[#252A34]">Fotos</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {inspection.images.map((img) => (
+                <img
+                  key={img.id}
+                  src={img.imageUrl}
+                  alt=""
+                  className="aspect-square rounded-lg object-cover border border-[#c6c6cc]/30 shadow-sm"
+                />
+              ))}
             </div>
           </section>
         )}

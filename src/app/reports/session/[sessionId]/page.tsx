@@ -90,6 +90,7 @@ export default function ReportSessionPage() {
     let y = m
 
     const first = inspections[0]
+    const allImages = inspections.flatMap(insp => insp.images)
 
     doc.setFillColor(37, 42, 52)
     doc.rect(0, 0, pw, 22, "F")
@@ -107,10 +108,14 @@ export default function ReportSessionPage() {
     doc.text(first.inspectionNumber, pw / 2, y, { align: "center" })
     y += 7
 
+    const firstNames = first.roomManager?.name?.split(" ")[0] || "—"
+
     doc.setTextColor(118, 119, 124)
     doc.setFont("helvetica", "normal")
-    doc.setFontSize(7)
-    doc.text(`Data: ${formatDate(first.createdAt)}   |   Vistoriador: ${first.createdBy.fullName}   |   ${inspections.length} registro(s)`, pw / 2, y, { align: "center" })
+    doc.setFontSize(6.5)
+    doc.text(`Filial: ${first.branch?.name || "—"}   |   ${formatDate(first.createdAt)}   |   Sala: ${first.room}   |   Gestor(a): ${firstNames}   |   ${inspections.length} registro(s)`, pw / 2, y, { align: "center" })
+    y += 4.5
+    doc.text(`Vistoriador: ${first.createdBy.fullName}   |   ${first.department?.name || "—"}   |   ${first.portfolio?.name || "—"}   |   ${first.managerRel?.name || "—"}   |   ${first.directorate?.name || "—"}`, pw / 2, y, { align: "center" })
     y += 6
 
     doc.setDrawColor(198, 198, 204)
@@ -153,18 +158,21 @@ export default function ReportSessionPage() {
       if (y > 265) { doc.addPage(); y = m }
 
       if (insp.occurrence) {
-        doc.setFillColor(37, 42, 52)
-        doc.roundedRect(m, y, pw - m * 2, 16, 3, 3, "F")
-        doc.setTextColor(97, 244, 253)
+        doc.setFillColor(242, 244, 247)
+        doc.roundedRect(m, y, pw - m * 2, 18, 3, 3, "F")
+        doc.setDrawColor(8, 217, 214)
+        doc.setLineWidth(0.6)
+        doc.line(m, y, m, y + 18)
+        doc.setTextColor(37, 42, 52)
         doc.setFont("helvetica", "bold")
         doc.setFontSize(7)
         doc.text("OCORRÊNCIA", m + 4, y + 4)
-        doc.setTextColor(149, 155, 170)
+        doc.setTextColor(118, 119, 124)
         doc.setFont("helvetica", "normal")
         doc.setFontSize(6)
-        const lines = doc.splitTextToSize(insp.occurrence, pw - m * 2 - 8)
+        const lines = doc.splitTextToSize(insp.occurrence, pw - m * 2 - 12)
         doc.text(lines.slice(0, 2), m + 4, y + 10)
-        y += Math.min(lines.length, 2) * 3 + 18
+        y += Math.min(lines.length, 2) * 3 + 20
       }
 
       doc.setDrawColor(8, 217, 214)
@@ -175,22 +183,6 @@ export default function ReportSessionPage() {
       doc.setFontSize(9)
       doc.text(insp.type === "manutencao" ? "MANUTENÇÃO" : "LIMPEZA", m + 5, y + 3)
       y += 10
-
-      if (insp.images.length > 0) {
-        const s = 24, g = 2
-        const perRow = Math.floor((pw - m * 2) / (s + g))
-        let x = m
-        for (let i = 0; i < Math.min(insp.images.length, 4); i++) {
-          if (y > 275) { doc.addPage(); y = m }
-          try {
-            const d = await fetchImageAsBase64(insp.images[i].imageUrl)
-            doc.addImage(d, "JPEG", x, y, s, s)
-          } catch {}
-          x += s + g
-          if ((i + 1) % perRow === 0) { y += s + g; x = m }
-        }
-        if (x !== m) y += s + g
-      }
 
       if (insp.signature) {
         if (y > 275) { doc.addPage(); y = m }
@@ -235,6 +227,33 @@ export default function ReportSessionPage() {
         doc.text(`- ${tn}`, m, y)
         y += 4
       }
+    }
+
+    // === FOTOS ===
+    if (allImages.length > 0) {
+      if (y > 250) { doc.addPage(); y = m }
+      doc.setDrawColor(198, 198, 204)
+      doc.line(m, y, pw - m, y)
+      y += 5
+      doc.setTextColor(37, 42, 52)
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(10)
+      doc.text("Fotos", m, y)
+      y += 8
+
+      const s = 50, g = 4
+      const perRow = Math.floor((pw - m * 2) / (s + g))
+      let x = m
+      for (let i = 0; i < allImages.length; i++) {
+        if (y > 270) { doc.addPage(); y = m; x = m }
+        try {
+          const d = await fetchImageAsBase64(allImages[i].imageUrl)
+          doc.addImage(d, "JPEG", x, y, s, s)
+        } catch {}
+        x += s + g
+        if ((i + 1) % perRow === 0) { y += s + g; x = m }
+      }
+      if (x !== m) y += s + g
     }
 
     doc.save("relatorio-sessao.pdf")
@@ -284,7 +303,10 @@ export default function ReportSessionPage() {
           <div className="text-center mb-3">
             <h2 className="text-2xl font-black text-[#252A34] tracking-tight">{first.inspectionNumber}</h2>
             <p className="text-xs text-[#76777c] mt-2">
-              {formatDate(first.createdAt)} &mdash; {first.createdBy.fullName} &mdash; {inspections.length} registro(s)
+              Filial: {first.branch?.name || "—"} &mdash; {formatDate(first.createdAt)} &mdash; Sala: {first.room} &mdash; Gestor(a): {first.roomManager?.name?.split(" ")[0] || "—"} &mdash; {inspections.length} registro(s)
+            </p>
+            <p className="text-xs text-[#76777c]">
+              {first.createdBy.fullName} &mdash; {first.department?.name || "—"} &mdash; {first.portfolio?.name || "—"} &mdash; {first.managerRel?.name || "—"} &mdash; {first.directorate?.name || "—"}
             </p>
           </div>
           <hr className="border-[#c6c6cc]/50" />
@@ -316,19 +338,12 @@ export default function ReportSessionPage() {
             <section key={insp.id}>
               {/* Occurrence */}
               {insp.occurrence && (
-                <div className="bg-[#252A34] rounded-lg p-4 mb-3 relative overflow-hidden">
-                  <div className="relative z-10">
-                    <div className="flex items-center gap-2 mb-2">
-                      <AlertCircle className="size-4 text-[#61F4FD]" />
-                      <h3 className="text-sm font-bold text-[#61F4FD]">Ocorrência</h3>
-                    </div>
-                    <p className="text-xs text-[#959BAA] leading-relaxed">{insp.occurrence}</p>
+                <div className="bg-[#F2F4F7] rounded-lg p-4 mb-3 border-l-4 border-[#08D9D6] shadow-sm">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertCircle className="size-4 text-[#252A34]" />
+                    <h3 className="text-sm font-bold text-[#252A34]">Ocorrência</h3>
                   </div>
-                  <div className="absolute right-0 top-0 w-32 h-full opacity-5 pointer-events-none">
-                    <svg className="w-full h-full text-white fill-current" viewBox="0 0 100 100">
-                      <path d="M0 0 L100 100 M20 0 L100 80 M40 0 L100 60" stroke="currentColor" strokeWidth="2" />
-                    </svg>
-                  </div>
+                  <p className="text-xs text-[#76777c] leading-relaxed">{insp.occurrence}</p>
                 </div>
               )}
 
@@ -355,17 +370,6 @@ export default function ReportSessionPage() {
                 </h3>
               </div>
 
-              {/* Photos */}
-              {insp.images.length > 0 && (
-                <div className="grid grid-cols-4 gap-2 mb-3">
-                  {insp.images.slice(0, 8).map((img) => (
-                    <button key={img.id} type="button" onClick={() => setExpandedImage({ url: img.imageUrl, room: insp.room, type: insp.type })}>
-                      <img src={img.imageUrl} alt="" className="aspect-square rounded-lg object-cover border border-[#c6c6cc]/30 transition-transform hover:scale-105" />
-                    </button>
-                  ))}
-                </div>
-              )}
-
               {/* Signature */}
               {insp.signature && (
                 <div className="bg-white rounded-lg p-4 flex items-center gap-4 border border-[#c6c6cc]/20 shadow-sm">
@@ -384,6 +388,23 @@ export default function ReportSessionPage() {
             </section>
           ))}
         </div>
+
+        {/* Photos */}
+        {inspections.some(insp => insp.images.length > 0) && (
+          <section>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-1 h-8 bg-[#08D9D6] rounded-full" />
+              <h3 className="text-base font-bold text-[#252A34]">Fotos</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {inspections.flatMap(insp => insp.images).map((img) => (
+                <button key={img.id} type="button" onClick={() => setExpandedImage({ url: img.imageUrl, room: "", type: "" })}>
+                  <img src={img.imageUrl} alt="" className="aspect-square rounded-lg object-cover border border-[#c6c6cc]/30 shadow-sm transition-transform hover:scale-105" />
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Tickets */}
         <section className="bg-white rounded-lg p-4 shadow-sm border border-[#c6c6cc]/20">
