@@ -21,9 +21,12 @@ import {
   PenLine,
   Briefcase,
   MapPin,
+  Plus,
+  Trash2,
 } from "lucide-react"
 import { FloatingNav } from "@/components/floating-nav"
 import { cn, formatDate } from "@/lib/utils"
+import { toast } from "sonner"
 
 interface InspectionImage {
   id: number
@@ -80,6 +83,7 @@ export default function ReportPage() {
   const reportRef = useRef<HTMLDivElement>(null)
   const [inspection, setInspection] = useState<Inspection | null>(null)
   const [loading, setLoading] = useState(true)
+  const [externalTickets, setExternalTickets] = useState<string[]>([])
 
   useEffect(() => {
     fetchInspection()
@@ -101,6 +105,22 @@ export default function ReportPage() {
     }
   }
 
+  function addExternalTicket() {
+    setExternalTickets((prev) => [...prev, ""])
+  }
+
+  function updateExternalTicket(index: number, value: string) {
+    setExternalTickets((prev) => {
+      const next = [...prev]
+      next[index] = value
+      return next
+    })
+  }
+
+  function removeExternalTicket(index: number) {
+    setExternalTickets((prev) => prev.filter((_, i) => i !== index))
+  }
+
   async function handleGeneratePdf() {
     const jsPDF = (await import("jspdf")).default
     const doc = new jsPDF("p", "mm", "a4")
@@ -109,96 +129,135 @@ export default function ReportPage() {
     let y = margin
 
     doc.setFont("helvetica", "bold")
-    doc.setFontSize(18)
+    doc.setFontSize(16)
     doc.text("RELATÓRIO DE VISTORIA", pageWidth / 2, y, { align: "center" })
-    y += 12
-
-    doc.setFontSize(10)
-    doc.setFont("helvetica", "normal")
-    doc.text(`Nº: ${inspection!.inspectionNumber}`, margin, y)
-    y += 6
-    doc.text(`Tipo: ${inspection!.type}`, margin, y)
-    y += 6
-    doc.text(`Sala: ${inspection!.room}`, margin, y)
-    y += 6
-    doc.text(`Filial: ${inspection!.branch?.name || "—"}`, margin, y)
-    y += 6
-    doc.text(`Departamento: ${inspection!.department?.name || "—"}`, margin, y)
-    y += 6
-    doc.text(`Carteira: ${inspection!.portfolio?.name || "—"}`, margin, y)
-    y += 6
-    doc.text(`Gestor: ${inspection!.managerRel?.name || "—"}`, margin, y)
-    y += 6
-    doc.text(`Diretoria: ${inspection!.directorate?.name || "—"}`, margin, y)
-    y += 6
-    doc.text(`Inspetor: ${inspection!.createdBy.fullName}`, margin, y)
-    y += 6
-    doc.text(`Data: ${formatDate(inspection!.createdAt)}`, margin, y)
-    y += 6
-    const status = statusConfig[inspection!.status] || statusConfig.pendente
-    doc.text(`Status: ${status.label}`, margin, y)
     y += 10
 
-    if (inspection!.occurrence) {
+    doc.setDrawColor(200)
+    doc.line(margin, y, pageWidth - margin, y)
+    y += 6
+
+    doc.setFontSize(9)
+    doc.setFont("helvetica", "normal")
+    const fields = [
+      ["Nº Vistoria:", inspection!.inspectionNumber],
+      ["Data:", formatDate(inspection!.createdAt)],
+      ["Inspetor:", inspection!.createdBy.fullName],
+      ["Filial:", inspection!.branch?.name || "—"],
+      ["Sala / Ambiente:", inspection!.room],
+      ["Departamento:", inspection!.department?.name || "—"],
+      ["Carteira:", inspection!.portfolio?.name || "—"],
+      ["Gestor:", inspection!.managerRel?.name || "—"],
+      ["Diretoria:", inspection!.directorate?.name || "—"],
+    ]
+    for (const [label, value] of fields) {
       doc.setFont("helvetica", "bold")
-      doc.text("OCORRÊNCIA:", margin, y)
-      y += 6
+      doc.text(label, margin, y)
+      const labelW = doc.getTextWidth(label)
       doc.setFont("helvetica", "normal")
-      const lines = doc.splitTextToSize(inspection!.occurrence, pageWidth - margin * 2)
-      doc.text(lines, margin, y)
-      y += lines.length * 5 + 6
+      doc.text(` ${value}`, margin + labelW, y)
+      y += 5
     }
 
-    if (inspection!.images.length > 0) {
-      doc.setFont("helvetica", "bold")
-      doc.text("FOTOS:", margin, y)
-      y += 8
-      for (const img of inspection!.images) {
-        if (y > 270) {
-          doc.addPage()
-          y = margin
-        }
-        try {
-          const imgData = await fetchImageAsBase64(img.imageUrl)
-          const imgProps = doc.getImageProperties(imgData)
-          const maxW = pageWidth - margin * 2
-          const ratio = maxW / imgProps.width
-          const imgH = imgProps.height * ratio
-          if (imgH > 60) {
-            const r2 = 60 / imgProps.height
-            doc.addImage(imgData, "JPEG", margin, y, imgProps.width * r2, 60)
-            y += 65
-          } else {
-            doc.addImage(imgData, "JPEG", margin, y, maxW, imgH)
-            y += imgH + 5
-          }
-        } catch {
-          y += 5
-        }
-      }
-    }
+    y += 3
+    doc.setDrawColor(200)
+    doc.line(margin, y, pageWidth - margin, y)
+    y += 6
 
-    if (inspection!.tickets.length > 0) {
+    const records = [inspection!]
+    for (const rec of records) {
       if (y > 250) {
         doc.addPage()
         y = margin
       }
+
       doc.setFont("helvetica", "bold")
-      doc.text("CHAMADOS VINCULADOS:", margin, y)
-      y += 8
+      doc.setFontSize(11)
+      doc.text(`Tipo: ${rec.type === "manutencao" ? "MANUTENÇÃO" : "LIMPEZA"}`, margin, y)
+      y += 6
+
+      if (rec.occurrence) {
+        doc.setFont("helvetica", "bold")
+        doc.setFontSize(9)
+        doc.text("Ocorrência:", margin, y)
+        y += 4
+        doc.setFont("helvetica", "normal")
+        const lines = doc.splitTextToSize(rec.occurrence, pageWidth - margin * 2)
+        doc.text(lines, margin, y)
+        y += lines.length * 4 + 4
+      }
+
+      if (rec.images.length > 0) {
+        doc.setFont("helvetica", "bold")
+        doc.setFontSize(9)
+        doc.text("Fotos:", margin, y)
+        y += 5
+        const imgSize = 35
+        const gap = 3
+        const imgsPerRow = Math.floor((pageWidth - margin * 2) / (imgSize + gap))
+        let imgX = margin
+        for (let i = 0; i < rec.images.length; i++) {
+          if (y > 270) {
+            doc.addPage()
+            y = margin
+          }
+          try {
+            const imgData = await fetchImageAsBase64(rec.images[i].imageUrl)
+            doc.addImage(imgData, "JPEG", imgX, y, imgSize, imgSize)
+          } catch {}
+          imgX += imgSize + gap
+          if ((i + 1) % imgsPerRow === 0) {
+            y += imgSize + gap
+            imgX = margin
+          }
+        }
+        if (imgX !== margin) y += imgSize + gap
+      }
+
+      if (rec.signature) {
+        if (y > 260) {
+          doc.addPage()
+          y = margin
+        }
+        try {
+          const sigData = await fetchImageAsBase64(rec.signature.managerSignature)
+          doc.setFont("helvetica", "bold")
+          doc.setFontSize(9)
+          doc.text("Assinatura:", margin, y)
+          y += 4
+          doc.addImage(sigData, "PNG", margin, y, 60, 25)
+          y += 30
+        } catch {}
+      }
+
+      y += 4
+    }
+
+    const allTickets = [
+      ...inspection!.tickets.map((t) => t.ticketNumber),
+      ...externalTickets.filter(Boolean),
+    ]
+    if (allTickets.length > 0) {
+      if (y > 250) {
+        doc.addPage()
+        y = margin
+      }
+      doc.setDrawColor(200)
+      doc.line(margin, y, pageWidth - margin, y)
+      y += 6
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(11)
+      doc.text("CHAMADOS", margin, y)
+      y += 6
       doc.setFont("helvetica", "normal")
-      for (const ticket of inspection!.tickets) {
+      doc.setFontSize(9)
+      for (const tn of allTickets) {
         if (y > 270) {
           doc.addPage()
           y = margin
         }
-        doc.text(`${ticket.ticketNumber} - ${ticket.status}`, margin, y)
+        doc.text(`- ${tn}`, margin, y)
         y += 5
-        if (ticket.description) {
-          const descLines = doc.splitTextToSize(ticket.description, pageWidth - margin * 2)
-          doc.text(descLines, margin, y)
-          y += descLines.length * 5 + 3
-        }
       }
     }
 
@@ -226,12 +285,8 @@ export default function ReportPage() {
       await navigator.share(shareData)
     } catch {
       try {
-        await navigator.clipboard.writeText(
-          `${shareData.title}\n${shareData.text}`
-        )
-      } catch {
-        /* ignore */
-      }
+        await navigator.clipboard.writeText(`${shareData.title}\n${shareData.text}`)
+      } catch {}
     }
   }
 
@@ -284,179 +339,171 @@ export default function ReportPage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-xl bg-card ring-1 ring-foreground/10"
+          className="rounded-xl bg-card ring-1 ring-foreground/10 overflow-hidden"
         >
-          <div className="border-b p-4 text-center">
+          <div className="border-b p-4 text-center bg-primary/5">
             <p
               className="text-lg font-extrabold text-primary"
               style={{ fontFamily: "var(--font-heading)" }}
             >
               RELATÓRIO DE VISTORIA
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">{inspection.inspectionNumber}</p>
           </div>
 
+          {/* Cabeçalho */}
           <div className="divide-y">
-            <DetailRow icon={Tag} label="Tipo" value={inspection.type} />
-            <DetailRow icon={Building2} label="Sala" value={inspection.room} />
-            <DetailRow icon={Building2} label="Filial" value={inspection.branch?.name || "—"} />
-            <DetailRow icon={Briefcase} label="Departamento" value={inspection.department?.name || "—"} />
-            <DetailRow icon={FolderOpen} label="Carteira" value={inspection.portfolio?.name || "—"} />
-            <DetailRow icon={User} label="Gestor" value={inspection.managerRel?.name || "—"} />
-            <DetailRow icon={MapPin} label="Diretoria" value={inspection.directorate?.name || "—"} />
-            <DetailRow icon={User} label="Inspetor" value={inspection.createdBy.fullName} />
-            <DetailRow icon={Calendar} label="Data" value={formatDate(inspection.createdAt)} />
-            <DetailRow
-              icon={inspection.status === "conforme" || inspection.status === "compliant" ? CheckCircle2 : XCircle}
-              label="Status"
-              value={status.label}
-              valueClass={status.color}
-            />
+            <HeaderRow icon={FileText} label="Nº Vistoria" value={inspection.inspectionNumber} />
+            <HeaderRow icon={Calendar} label="Data" value={formatDate(inspection.createdAt)} />
+            <HeaderRow icon={User} label="Inspetor" value={inspection.createdBy.fullName} />
+            <HeaderRow icon={Building2} label="Filial" value={inspection.branch?.name || "—"} />
+            <HeaderRow icon={MapPin} label="Sala / Ambiente" value={inspection.room} />
+            <HeaderRow icon={Briefcase} label="Departamento" value={inspection.department?.name || "—"} />
+            <HeaderRow icon={FolderOpen} label="Carteira" value={inspection.portfolio?.name || "—"} />
+            <HeaderRow icon={User} label="Gestor" value={inspection.managerRel?.name || "—"} />
+            <HeaderRow icon={MapPin} label="Diretoria" value={inspection.directorate?.name || "—"} />
           </div>
         </motion.div>
 
-        {inspection.occurrence && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.08 }}
-            className="mt-4 rounded-xl bg-card p-4 ring-1 ring-foreground/10"
-          >
-            <div className="mb-2 flex items-center gap-2">
-              <AlertCircle className="size-4 text-action-primary" />
-              <span
-                className="text-xs font-bold text-muted-foreground"
-                style={{ fontFamily: "var(--font-sans)" }}
-              >
-                OCORRÊNCIA
-              </span>
-            </div>
-            <p className="text-sm text-foreground">{inspection.occurrence}</p>
-          </motion.div>
-        )}
-
-        {(inspection.images.length > 0 || inspection.signature) && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.12 }}
-            className="mt-4"
-          >
-            <div className="mb-3 flex items-center gap-2 px-1">
-              <ImageIcon className="size-4 text-muted-foreground" />
-              <span
-                className="text-xs font-bold text-muted-foreground"
-                style={{ fontFamily: "var(--font-sans)" }}
-              >
-                FOTOS E ASSINATURA
-              </span>
-            </div>
-
-            {/* Miniaturas lado a lado */}
-            <div className="flex gap-3">
-              {inspection.images.length > 0 && (
-                <div className="flex-1 space-y-2">
-                  {inspection.images.map((img) => (
-                    <div
-                      key={img.id}
-                      className="overflow-hidden rounded-lg bg-muted ring-1 ring-foreground/10"
-                    >
-                      <img
-                        src={img.imageUrl}
-                        alt={`Foto ${img.sequenceNumber}`}
-                        className="w-full object-cover"
-                        style={{ maxHeight: 100 }}
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-              {inspection.signature && (
-                <div className="flex-1 rounded-xl bg-card p-3 ring-1 ring-foreground/10">
-                  <div className="mb-1 flex items-center gap-1.5">
-                    <PenLine className="size-3.5 text-muted-foreground" />
-                    <span className="text-[11px] font-bold text-muted-foreground">ASSINATURA</span>
-                  </div>
-                  <img
-                    src={inspection.signature.managerSignature}
-                    alt="Assinatura"
-                    className="max-h-20 rounded-lg bg-white"
-                  />
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    {formatDate(inspection.signature.signedAt)}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Fotos grandes abaixo */}
-            {inspection.images.length > 0 && (
-              <div className="mt-4 space-y-4">
-                {inspection.images.map((img) => (
-                  <div key={img.id} className="rounded-xl bg-card overflow-hidden ring-1 ring-foreground/10">
-                    <img
-                      src={img.imageUrl}
-                      alt={`Foto ${img.sequenceNumber}`}
-                      className="w-full object-contain bg-black/5"
-                      style={{ maxHeight: 300 }}
-                    />
-                    <div className="flex items-center gap-2 px-3 py-2 border-t border-border">
-                      <Building2 className="size-3.5 text-muted-foreground" />
-                      <span className="text-xs font-medium text-foreground">{inspection.room}</span>
-                      <span className="text-[11px] text-muted-foreground">
-                        {inspection.type === "manutencao" ? "Manutenção" : "Limpeza"}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </motion.div>
-        )}
-
+        {/* Registro da Vistoria */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="mt-6"
+          transition={{ delay: 0.08 }}
+          className="mt-4 rounded-xl bg-card ring-1 ring-foreground/10 overflow-hidden"
         >
-          <div className="mb-2 flex items-center gap-2 px-1">
-            <Ticket className="size-4 text-muted-foreground" />
-            <span
-              className="text-xs font-bold text-muted-foreground"
-              style={{ fontFamily: "var(--font-sans)" }}
-            >
-              CHAMADOS VINCULADOS
-            </span>
-          </div>
-          {inspection.tickets.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 rounded-xl bg-card py-6 text-center ring-1 ring-foreground/10">
-              <Ticket className="size-6 text-muted-foreground/50" />
-              <p className="text-xs text-muted-foreground">Nenhum chamado vinculado</p>
+          <div className="p-4 bg-primary/5 border-b">
+            <div className="flex items-center gap-2">
+              <Tag className="size-4 text-primary" />
+              <h3
+                className="text-sm font-bold text-foreground"
+                style={{ fontFamily: "var(--font-heading)" }}
+              >
+                TIPO: {inspection.type === "manutencao" ? "MANUTENÇÃO" : "LIMPEZA"}
+              </h3>
             </div>
-          ) : (
-            <div className="space-y-2">
-              {inspection.tickets.map((ticket) => (
-                <div
-                  key={ticket.id}
-                  className="rounded-xl bg-card p-3 ring-1 ring-foreground/10"
-                >
-                  <span
-                    className="text-sm font-bold text-foreground"
-                    style={{ fontFamily: "var(--font-heading)" }}
-                  >
-                    {ticket.ticketNumber}
-                  </span>
-                  {ticket.description && (
-                    <p className="mt-1 text-xs text-muted-foreground">{ticket.description}</p>
-                  )}
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    {ticket.createdBy.fullName} — {formatDate(ticket.createdAt)}
-                  </p>
-                </div>
-              ))}
+          </div>
+
+          {inspection.occurrence && (
+            <div className="px-4 py-3 border-b">
+              <div className="flex items-center gap-2 mb-1">
+                <AlertCircle className="size-3.5 text-action-primary" />
+                <span className="text-xs font-bold text-muted-foreground">OCORRÊNCIA</span>
+              </div>
+              <p className="text-sm text-foreground">{inspection.occurrence}</p>
             </div>
           )}
+
+          {inspection.images.length > 0 && (
+            <div className="px-4 py-3 border-b">
+              <div className="flex items-center gap-2 mb-2">
+                <ImageIcon className="size-3.5 text-muted-foreground" />
+                <span className="text-xs font-bold text-muted-foreground">FOTOS</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {inspection.images.map((img) => (
+                  <div
+                    key={img.id}
+                    className="aspect-square overflow-hidden rounded-lg bg-muted ring-1 ring-foreground/10"
+                  >
+                    <img
+                      src={img.imageUrl}
+                      alt={`Foto ${img.sequenceNumber}`}
+                      className="size-full object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {inspection.signature && (
+            <div className="px-4 py-3">
+              <div className="flex items-center gap-2 mb-1">
+                <PenLine className="size-3.5 text-muted-foreground" />
+                <span className="text-xs font-bold text-muted-foreground">ASSINATURA</span>
+              </div>
+              <img
+                src={inspection.signature.managerSignature}
+                alt="Assinatura"
+                className="max-h-20 rounded-lg bg-white"
+              />
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Assinado em {formatDate(inspection.signature.signedAt)}
+              </p>
+            </div>
+          )}
+        </motion.div>
+
+        {/* Chamados Vinculados + Campo externo */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.14 }}
+          className="mt-4 rounded-xl bg-card ring-1 ring-foreground/10 overflow-hidden"
+        >
+          <div className="p-4 bg-primary/5 border-b">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Ticket className="size-4 text-primary" />
+                <h3
+                  className="text-sm font-bold text-foreground"
+                  style={{ fontFamily: "var(--font-heading)" }}
+                >
+                  CHAMADOS
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={addExternalTicket}
+                className="flex items-center gap-1 text-xs font-medium text-action-primary"
+              >
+                <Plus className="size-3.5" />
+                Adicionar Nº
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-2 p-4">
+            {inspection.tickets.length === 0 && externalTickets.length === 0 && (
+              <p className="text-xs text-muted-foreground text-center py-4">
+                Nenhum chamado vinculado
+              </p>
+            )}
+
+            {inspection.tickets.map((ticket) => (
+              <div
+                key={ticket.id}
+                className="flex items-center gap-3 rounded-lg bg-muted/50 px-3 py-2"
+              >
+                <Ticket className="size-3.5 text-muted-foreground shrink-0" />
+                <span
+                  className="text-sm font-semibold text-foreground"
+                  style={{ fontFamily: "var(--font-heading)" }}
+                >
+                  {ticket.ticketNumber}
+                </span>
+              </div>
+            ))}
+
+            {externalTickets.map((num, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="Nº do chamado externo"
+                  value={num}
+                  onChange={(e) => updateExternalTicket(i, e.target.value)}
+                  className="h-9 flex-1 rounded-lg border border-input bg-background px-3 text-xs outline-none ring-0 focus:border-ring focus:ring-2 focus:ring-ring/20"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeExternalTicket(i)}
+                  className="flex size-8 items-center justify-center rounded-full text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
         </motion.div>
 
         <div className="mt-6 flex gap-3">
@@ -486,23 +533,21 @@ export default function ReportPage() {
   )
 }
 
-function DetailRow({
+function HeaderRow({
   icon: Icon,
   label,
   value,
-  valueClass,
 }: {
   icon: any
   label: string
   value: string
-  valueClass?: string
 }) {
   return (
-    <div className="flex items-center gap-3 px-4 py-3">
-      <Icon className="size-4 text-muted-foreground" />
-      <div className="flex-1">
-        <span className="text-xs text-muted-foreground">{label}</span>
-        <p className={cn("text-sm font-medium text-foreground", valueClass)}>{value}</p>
+    <div className="flex items-center gap-3 px-4 py-2.5">
+      <Icon className="size-4 text-muted-foreground shrink-0" />
+      <div className="flex-1 flex items-baseline gap-2">
+        <span className="text-xs text-muted-foreground font-medium">{label}:</span>
+        <span className="text-sm font-semibold text-foreground">{value}</span>
       </div>
     </div>
   )

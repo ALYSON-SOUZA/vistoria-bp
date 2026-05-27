@@ -15,9 +15,17 @@ import {
   Sparkles,
   PenLine,
   Image as ImageIcon,
+  AlertCircle,
+  Tag,
+  Briefcase,
+  MapPin,
+  Ticket,
+  Plus,
+  Trash2,
 } from "lucide-react"
 import { FloatingNav } from "@/components/floating-nav"
 import { cn, formatDate } from "@/lib/utils"
+import { toast } from "sonner"
 
 interface InspectionImage {
   id: number
@@ -56,6 +64,7 @@ export default function ReportSessionPage() {
   const [inspections, setInspections] = useState<Inspection[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedImage, setExpandedImage] = useState<{ url: string; room: string; type: string } | null>(null)
+  const [externalTickets, setExternalTickets] = useState<string[]>([])
 
   useEffect(() => {
     fetchSession()
@@ -80,6 +89,22 @@ export default function ReportSessionPage() {
     }
   }
 
+  function addExternalTicket() {
+    setExternalTickets((prev) => [...prev, ""])
+  }
+
+  function updateExternalTicket(index: number, value: string) {
+    setExternalTickets((prev) => {
+      const next = [...prev]
+      next[index] = value
+      return next
+    })
+  }
+
+  function removeExternalTicket(index: number) {
+    setExternalTickets((prev) => prev.filter((_, i) => i !== index))
+  }
+
   async function handleGeneratePdf() {
     const jsPDF = (await import("jspdf")).default
     const doc = new jsPDF("p", "mm", "a4")
@@ -88,65 +113,89 @@ export default function ReportSessionPage() {
     let y = margin
 
     doc.setFont("helvetica", "bold")
-    doc.setFontSize(18)
+    doc.setFontSize(16)
     doc.text("RELATÓRIO DE VISTORIA", pageWidth / 2, y, { align: "center" })
     y += 10
 
-    doc.setFontSize(10)
+    doc.setDrawColor(200)
+    doc.line(margin, y, pageWidth - margin, y)
+    y += 6
+
+    doc.setFontSize(9)
     doc.setFont("helvetica", "normal")
-    doc.text(`Inspetor: ${inspections[0].createdBy.fullName}`, margin, y)
+    const first = inspections[0]
+    const fields = [
+      ["Nº Vistoria:", first.inspectionNumber],
+      ["Data:", formatDate(first.createdAt)],
+      ["Inspetor:", first.createdBy.fullName],
+      ["Filial:", first.branch?.name || "—"],
+      ["Sala / Ambiente:", first.room],
+      ["Departamento:", first.department?.name || "—"],
+      ["Carteira:", first.portfolio?.name || "—"],
+      ["Gestor:", first.managerRel?.name || "—"],
+      ["Diretoria:", first.directorate?.name || "—"],
+    ]
+    for (const [label, value] of fields) {
+      doc.setFont("helvetica", "bold")
+      doc.text(label, margin, y)
+      const labelW = doc.getTextWidth(label)
+      doc.setFont("helvetica", "normal")
+      doc.text(` ${value}`, margin + labelW, y)
+      y += 5
+    }
+
+    y += 3
+    doc.setDrawColor(200)
+    doc.line(margin, y, pageWidth - margin, y)
     y += 6
-    doc.text(`Data: ${formatDate(inspections[0].createdAt)}`, margin, y)
-    y += 6
-    doc.text(`Total de Registros: ${inspections.length}`, margin, y)
-    y += 10
 
     for (const insp of inspections) {
       if (y > 250) {
         doc.addPage()
         y = margin
       }
+
       doc.setFont("helvetica", "bold")
       doc.setFontSize(11)
-      doc.text(`${insp.inspectionNumber} - ${insp.type === "manutencao" ? "Manutenção" : "Limpeza"} - ${insp.room}`, margin, y)
-      y += 7
+      doc.text(`Tipo: ${insp.type === "manutencao" ? "MANUTENÇÃO" : "LIMPEZA"}`, margin, y)
+      y += 6
 
-      doc.setFont("helvetica", "normal")
-      doc.setFontSize(9)
-      doc.text(`Filial: ${insp.branch?.name || "—"}`, margin + 5, y)
-      y += 5
-      doc.text(`Departamento: ${insp.department?.name || "—"}`, margin + 5, y)
-      y += 5
-      doc.text(`Ocorrência: ${insp.occurrence || "—"}`, margin + 5, y)
-      y += 7
+      if (insp.occurrence) {
+        doc.setFont("helvetica", "bold")
+        doc.setFontSize(9)
+        doc.text("Ocorrência:", margin, y)
+        y += 4
+        doc.setFont("helvetica", "normal")
+        const lines = doc.splitTextToSize(insp.occurrence, pageWidth - margin * 2)
+        doc.text(lines, margin, y)
+        y += lines.length * 4 + 4
+      }
 
       if (insp.images.length > 0) {
         doc.setFont("helvetica", "bold")
-        doc.text("Fotos:", margin + 5, y)
-        y += 6
-        for (const img of insp.images) {
-          if (y > 260) {
+        doc.setFontSize(9)
+        doc.text("Fotos:", margin, y)
+        y += 5
+        const imgSize = 35
+        const gap = 3
+        const imgsPerRow = Math.floor((pageWidth - margin * 2) / (imgSize + gap))
+        let imgX = margin
+        for (let i = 0; i < insp.images.length; i++) {
+          if (y > 270) {
             doc.addPage()
             y = margin
           }
           try {
-            const imgData = await fetchImageAsBase64(img.imageUrl)
-            const imgProps = doc.getImageProperties(imgData)
-            const maxW = (pageWidth - margin * 2) * 0.4
-            const ratio = maxW / imgProps.width
-            const imgH = imgProps.height * ratio
-            if (imgH > 50) {
-              const r2 = 50 / imgProps.height
-              doc.addImage(imgData, "JPEG", margin + 5, y, imgProps.width * r2, 50)
-              y += 55
-            } else {
-              doc.addImage(imgData, "JPEG", margin + 5, y, maxW, imgH)
-              y += imgH + 5
-            }
-          } catch {
-            y += 5
+            const imgData = await fetchImageAsBase64(insp.images[i].imageUrl)
+            doc.addImage(imgData, "JPEG", imgX, y, imgSize, imgSize)
+          } catch {}
+          imgX += imgSize + gap
+          if ((i + 1) % imgsPerRow === 0) {
+            y += imgSize + gap
+            imgX = margin
           }
         }
+        if (imgX !== margin) y += imgSize + gap
       }
 
       if (insp.signature) {
@@ -156,17 +205,44 @@ export default function ReportSessionPage() {
         }
         try {
           const sigData = await fetchImageAsBase64(insp.signature.managerSignature)
-          doc.addImage(sigData, "PNG", margin + 5, y, 60, 20)
-          y += 25
-        } catch {
-          y += 5
-        }
+          doc.setFont("helvetica", "bold")
+          doc.setFontSize(9)
+          doc.text("Assinatura:", margin, y)
+          y += 4
+          doc.addImage(sigData, "PNG", margin, y, 60, 25)
+          y += 30
+        } catch {}
       }
 
-      y += 5
+      y += 4
     }
 
-    doc.save(`relatorio-sessao.pdf`)
+    const allTickets = [...externalTickets.filter(Boolean)]
+    if (allTickets.length > 0) {
+      if (y > 250) {
+        doc.addPage()
+        y = margin
+      }
+      doc.setDrawColor(200)
+      doc.line(margin, y, pageWidth - margin, y)
+      y += 6
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(11)
+      doc.text("CHAMADOS", margin, y)
+      y += 6
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(9)
+      for (const tn of allTickets) {
+        if (y > 270) {
+          doc.addPage()
+          y = margin
+        }
+        doc.text(`- ${tn}`, margin, y)
+        y += 5
+      }
+    }
+
+    doc.save("relatorio-sessao.pdf")
   }
 
   async function fetchImageAsBase64(url: string): Promise<string> {
@@ -212,6 +288,8 @@ export default function ReportSessionPage() {
 
   if (!inspections.length) return null
 
+  const first = inspections[0]
+
   return (
     <div className="relative min-h-screen bg-background pb-24">
       <header className="flex items-center gap-3 border-b bg-card px-4 py-3">
@@ -238,12 +316,13 @@ export default function ReportSessionPage() {
       </header>
 
       <div className="px-4 pt-4" ref={reportRef}>
+        {/* Cabeçalho fixo */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-xl bg-card ring-1 ring-foreground/10"
+          className="rounded-xl bg-card ring-1 ring-foreground/10 overflow-hidden"
         >
-          <div className="border-b p-4 text-center">
+          <div className="border-b p-4 text-center bg-primary/5">
             <p
               className="text-lg font-extrabold text-primary"
               style={{ fontFamily: "var(--font-heading)" }}
@@ -251,136 +330,167 @@ export default function ReportSessionPage() {
               RELATÓRIO DE VISTORIA
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              {inspections.length} registro(s) — {inspections[0].createdBy.fullName}
+              {inspections.length} registro(s)
             </p>
           </div>
 
           <div className="divide-y">
-            <DetailRow icon={User} label="Inspetor" value={inspections[0].createdBy.fullName} />
-            <DetailRow icon={Calendar} label="Data" value={formatDate(inspections[0].createdAt)} />
-            <DetailRow icon={FileText} label="Total de Registros" value={String(inspections.length)} />
+            <HeaderRow icon={FileText} label="Nº Vistoria" value={first.inspectionNumber} />
+            <HeaderRow icon={Calendar} label="Data" value={formatDate(first.createdAt)} />
+            <HeaderRow icon={User} label="Inspetor" value={first.createdBy.fullName} />
+            <HeaderRow icon={Building2} label="Filial" value={first.branch?.name || "—"} />
+            <HeaderRow icon={MapPin} label="Sala / Ambiente" value={first.room} />
+            <HeaderRow icon={Briefcase} label="Departamento" value={first.department?.name || "—"} />
+            <HeaderRow icon={FolderOpen} label="Carteira" value={first.portfolio?.name || "—"} />
+            <HeaderRow icon={User} label="Gestor" value={first.managerRel?.name || "—"} />
+            <HeaderRow icon={MapPin} label="Diretoria" value={first.directorate?.name || "—"} />
           </div>
         </motion.div>
 
-        {/* Tabela de registros */}
-        <div className="mt-6 overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
-          <div className="border-b bg-muted/50 px-4 py-3">
-            <h3 className="text-sm font-bold text-foreground" style={{ fontFamily: "var(--font-heading)" }}>
-              REGISTROS DA VISTORIA
-            </h3>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-xs text-muted-foreground">
-                  <th className="px-4 py-2 font-medium">Nº</th>
-                  <th className="px-4 py-2 font-medium">Tipo</th>
-                  <th className="px-4 py-2 font-medium">Sala</th>
-                  <th className="px-4 py-2 font-medium">Fotos</th>
-                  <th className="px-4 py-2 font-medium">Assinatura</th>
-                  <th className="px-4 py-2 font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {inspections.map((insp) => (
-                  <tr key={insp.id} className="hover:bg-muted/30">
-                    <td className="px-4 py-3 font-medium text-foreground">{insp.inspectionNumber}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5">
-                        {insp.type === "limpeza" ? (
-                          <Sparkles className="size-3.5 text-action-success" />
-                        ) : (
-                          <HardHat className="size-3.5 text-primary" />
-                        )}
-                        <span className="text-xs text-foreground">
-                          {insp.type === "manutencao" ? "Manutenção" : "Limpeza"}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-foreground">{insp.room}</td>
-                    <td className="px-4 py-3">
-                      {insp.images.length > 0 ? (
-                        <div className="flex gap-1">
-                          {insp.images.map((img) => (
-                            <button
-                              key={img.id}
-                              type="button"
-                              onClick={() => setExpandedImage({ url: img.imageUrl, room: insp.room, type: insp.type })}
-                            >
-                              <img
-                                src={img.imageUrl}
-                                alt=""
-                                className="h-10 w-10 rounded object-cover ring-1 ring-foreground/10"
-                              />
-                            </button>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      {insp.signature ? (
+        {/* Registros da Vistoria */}
+        <div className="mt-6 space-y-4">
+          <h2
+            className="text-sm font-bold text-foreground px-1"
+            style={{ fontFamily: "var(--font-heading)" }}
+          >
+            REGISTROS DA VISTORIA
+          </h2>
+
+          {inspections.map((insp, idx) => (
+            <motion.div
+              key={insp.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.08 }}
+              className="rounded-xl bg-card ring-1 ring-foreground/10 overflow-hidden"
+            >
+              <div className="p-4 bg-primary/5 border-b">
+                <div className="flex items-center gap-2">
+                  {insp.type === "limpeza" ? (
+                    <Sparkles className="size-4 text-action-success" />
+                  ) : (
+                    <HardHat className="size-4 text-primary" />
+                  )}
+                  <h3
+                    className="text-sm font-bold text-foreground"
+                    style={{ fontFamily: "var(--font-heading)" }}
+                  >
+                    TIPO: {insp.type === "manutencao" ? "MANUTENÇÃO" : "LIMPEZA"}
+                  </h3>
+                </div>
+              </div>
+
+              {insp.occurrence && (
+                <div className="px-4 py-3 border-b">
+                  <div className="flex items-center gap-2 mb-1">
+                    <AlertCircle className="size-3.5 text-action-primary" />
+                    <span className="text-xs font-bold text-muted-foreground">OCORRÊNCIA</span>
+                  </div>
+                  <p className="text-sm text-foreground">{insp.occurrence}</p>
+                </div>
+              )}
+
+              {insp.images.length > 0 && (
+                <div className="px-4 py-3 border-b">
+                  <div className="flex items-center gap-2 mb-2">
+                    <ImageIcon className="size-3.5 text-muted-foreground" />
+                    <span className="text-xs font-bold text-muted-foreground">FOTOS</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {insp.images.map((img) => (
+                      <button
+                        key={img.id}
+                        type="button"
+                        onClick={() => setExpandedImage({ url: img.imageUrl, room: insp.room, type: insp.type })}
+                        className="aspect-square overflow-hidden rounded-lg bg-muted ring-1 ring-foreground/10"
+                      >
                         <img
-                          src={insp.signature.managerSignature}
-                          alt="Assinatura"
-                          className="h-8 rounded bg-white object-contain"
+                          src={img.imageUrl}
+                          alt={`Foto ${img.sequenceNumber}`}
+                          className="size-full object-cover transition-transform hover:scale-105"
                         />
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs font-medium text-action-success">CONFORME</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {insp.signature && (
+                <div className="px-4 py-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <PenLine className="size-3.5 text-muted-foreground" />
+                    <span className="text-xs font-bold text-muted-foreground">ASSINATURA</span>
+                  </div>
+                  <img
+                    src={insp.signature.managerSignature}
+                    alt="Assinatura"
+                    className="max-h-20 rounded-lg bg-white"
+                  />
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Assinado em {formatDate(insp.signature.signedAt)}
+                  </p>
+                </div>
+              )}
+            </motion.div>
+          ))}
         </div>
 
-        {/* Imagens ampliadas no final */}
-        {inspections.some((i) => i.images.length > 0) && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="mt-6"
-          >
-            <div className="mb-3 flex items-center gap-2 px-1">
-              <ImageIcon className="size-4 text-muted-foreground" />
-              <span className="text-xs font-bold text-muted-foreground">GALERIA DE IMAGENS</span>
+        {/* Chamados */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.14 }}
+          className="mt-4 rounded-xl bg-card ring-1 ring-foreground/10 overflow-hidden"
+        >
+          <div className="p-4 bg-primary/5 border-b">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Ticket className="size-4 text-primary" />
+                <h3
+                  className="text-sm font-bold text-foreground"
+                  style={{ fontFamily: "var(--font-heading)" }}
+                >
+                  CHAMADOS
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={addExternalTicket}
+                className="flex items-center gap-1 text-xs font-medium text-action-primary"
+              >
+                <Plus className="size-3.5" />
+                Adicionar Nº
+              </button>
             </div>
-            <div className="space-y-4">
-              {inspections.map((insp) =>
-                insp.images.length > 0 ? (
-                  <div key={insp.id} className="rounded-xl bg-card p-3 ring-1 ring-foreground/10">
-                    <p className="mb-2 text-xs font-bold text-foreground" style={{ fontFamily: "var(--font-heading)" }}>
-                      {insp.room} — {insp.type === "manutencao" ? "Manutenção" : "Limpeza"}
-                    </p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {insp.images.map((img) => (
-                        <button
-                          key={img.id}
-                          type="button"
-                          onClick={() => setExpandedImage({ url: img.imageUrl, room: insp.room, type: insp.type })}
-                          className="aspect-video overflow-hidden rounded-lg bg-muted ring-1 ring-foreground/10"
-                        >
-                          <img
-                            src={img.imageUrl}
-                            alt=""
-                            className="size-full object-cover transition-transform hover:scale-105"
-                          />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ) : null
-              )}
-            </div>
-          </motion.div>
-        )}
+          </div>
+
+          <div className="space-y-2 p-4">
+            {externalTickets.length === 0 && (
+              <p className="text-xs text-muted-foreground text-center py-4">
+                Nenhum chamado vinculado
+              </p>
+            )}
+
+            {externalTickets.map((num, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="Nº do chamado externo"
+                  value={num}
+                  onChange={(e) => updateExternalTicket(i, e.target.value)}
+                  className="h-9 flex-1 rounded-lg border border-input bg-background px-3 text-xs outline-none ring-0 focus:border-ring focus:ring-2 focus:ring-ring/20"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeExternalTicket(i)}
+                  className="flex size-8 items-center justify-center rounded-full text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </motion.div>
 
         <div className="mt-6 flex gap-3">
           <motion.button
@@ -434,14 +544,42 @@ export default function ReportSessionPage() {
   )
 }
 
-function DetailRow({ icon: Icon, label, value }: { icon: any; label: string; value: string }) {
+function HeaderRow({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: any
+  label: string
+  value: string
+}) {
   return (
-    <div className="flex items-center gap-3 px-4 py-3">
-      <Icon className="size-4 text-muted-foreground" />
-      <div className="flex-1">
-        <span className="text-xs text-muted-foreground">{label}</span>
-        <p className="text-sm font-medium text-foreground">{value}</p>
+    <div className="flex items-center gap-3 px-4 py-2.5">
+      <Icon className="size-4 text-muted-foreground shrink-0" />
+      <div className="flex-1 flex items-baseline gap-2">
+        <span className="text-xs text-muted-foreground font-medium">{label}:</span>
+        <span className="text-sm font-semibold text-foreground">{value}</span>
       </div>
     </div>
+  )
+}
+
+function FolderOpen(props: any) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+      <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+    </svg>
   )
 }
