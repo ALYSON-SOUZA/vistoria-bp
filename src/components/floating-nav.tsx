@@ -16,7 +16,7 @@ export function FloatingNav() {
   const router = useRouter()
 
   return (
-    <nav className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-1 rounded-full bg-primary px-2 py-1.5 shadow-xl ring-1 ring-white/10">
+    <nav className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-1 rounded-full bg-primary px-3 py-2 custom-shadow ring-1 ring-white/10">
       {navItems.map((item) => {
         const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
         const Icon = item.icon
@@ -26,14 +26,14 @@ export function FloatingNav() {
             type="button"
             onClick={() => router.push(item.href)}
             className={cn(
-              "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all",
+              "flex items-center gap-2 rounded-full px-4 py-2 text-xs font-medium transition-all duration-200",
               isActive
-                ? "bg-white/20 text-white"
+                ? "bg-white/20 text-tertiary-fixed-dim shadow-[0_0_15px_rgba(8,217,214,0.3)]"
                 : "text-white/60 hover:text-white/90"
             )}
           >
-            <Icon className="size-4" />
-            <span>{item.label}</span>
+            <Icon className={cn("size-4", isActive && "fill-tertiary-fixed-dim")} />
+            <span className="font-label-md text-label-md">{item.label}</span>
           </button>
         )
       })}

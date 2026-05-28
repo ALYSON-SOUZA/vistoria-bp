@@ -19,7 +19,9 @@ import {
   LogOut,
   Mail,
   Clock,
-  User as UserIcon,
+  Shield,
+  Warehouse,
+  Wrench,
 } from "lucide-react"
 import { FloatingNav } from "@/components/floating-nav"
 import { cn } from "@/lib/utils"
@@ -46,13 +48,21 @@ interface Inspection {
   sessionId?: string | null
 }
 
-const statusConfig: Record<string, { label: string; icon: typeof CheckCircle2; color: string }> = {
-  conforme: { label: "CONFORME", icon: CheckCircle2, color: "text-action-success" },
-  pendente: { label: "PENDENTE", icon: AlertTriangle, color: "text-yellow-500" },
-  nao_conforme: { label: "NÃO CONFORME", icon: XCircle, color: "text-action-primary" },
-  non_compliant: { label: "NÃO CONFORME", icon: XCircle, color: "text-action-primary" },
-  pending: { label: "PENDENTE", icon: AlertTriangle, color: "text-yellow-500" },
-  compliant: { label: "CONFORME", icon: CheckCircle2, color: "text-action-success" },
+const typeIcons: Record<string, { icon: typeof Building2; color: string }> = {
+  facilities: { icon: Building2, color: "text-primary" },
+  limpeza: { icon: ClipboardCheck, color: "text-action-success" },
+  seguranca: { icon: Shield, color: "text-action-primary" },
+  manutencao: { icon: Wrench, color: "text-yellow-500" },
+  predial: { icon: Warehouse, color: "text-tertiary-fixed-dim" },
+}
+
+const statusConfig: Record<string, { label: string; icon: typeof CheckCircle2; color: string; borderColor: string }> = {
+  conforme: { label: "CONFORME", icon: CheckCircle2, color: "text-tertiary-fixed-dim", borderColor: "border-l-tertiary-fixed-dim" },
+  pendente: { label: "PENDENTE", icon: AlertTriangle, color: "text-yellow-500", borderColor: "border-l-yellow-500" },
+  nao_conforme: { label: "NÃO CONFORME", icon: XCircle, color: "text-action-primary", borderColor: "border-l-action-primary" },
+  non_compliant: { label: "NÃO CONFORME", icon: XCircle, color: "text-action-primary", borderColor: "border-l-action-primary" },
+  pending: { label: "PENDENTE", icon: AlertTriangle, color: "text-yellow-500", borderColor: "border-l-yellow-500" },
+  compliant: { label: "CONFORME", icon: CheckCircle2, color: "text-tertiary-fixed-dim", borderColor: "border-l-tertiary-fixed-dim" },
 }
 
 function getGreeting() {
@@ -153,35 +163,37 @@ export default function DashboardPage() {
     }
   }
 
+  const initials = user?.fullName
+    ? user.fullName.split(" ").map((n) => n.charAt(0)).join("").slice(0, 2).toUpperCase()
+    : "AD"
+
   return (
-    <div className="relative min-h-screen bg-background pb-24">
-      <header className="flex items-center justify-between border-b bg-card px-4 py-3">
-        <div>
-          <p className="text-sm text-muted-foreground" style={{ fontFamily: "var(--font-sans)" }}>
+    <div className="relative min-h-screen bg-background pb-32">
+      {/* TopAppBar */}
+      <header className="sticky top-0 z-40 flex items-center justify-between bg-background px-4 py-4">
+        <div className="flex flex-col">
+          <span className="font-label-md text-label-md text-on-surface-variant/70">
             {getGreeting()},
-          </p>
-          <h1
-            className="text-lg font-bold text-primary"
-            style={{ fontFamily: "var(--font-heading)" }}
-          >
+          </span>
+          <h1 className="font-headline-md text-headline-md font-bold text-on-surface">
             {user?.nickname || user?.fullName || "Usuário"}
           </h1>
         </div>
         <div className="flex items-center gap-3">
           <button
             type="button"
-            className="relative flex size-9 items-center justify-center rounded-full bg-muted text-muted-foreground"
+            className="relative flex size-10 items-center justify-center rounded-full hover:opacity-80 active:scale-95 transition-transform duration-150"
           >
-            <Bell className="size-5" />
-            <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-action-primary ring-2 ring-card" />
+            <Bell className="size-6 text-on-surface" />
+            <span className="absolute top-2 right-2 size-2 rounded-full bg-action-primary border-2 border-background" />
           </button>
           <div className="relative" ref={menuRef}>
             <button
               type="button"
               onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex size-9 items-center justify-center rounded-full bg-primary text-xs font-bold text-white transition-all hover:bg-primary/80"
+              className="flex size-10 items-center justify-center rounded-full bg-primary-container text-sm font-bold text-white border-2 border-white custom-shadow overflow-hidden"
             >
-              {(user?.fullName || "U").charAt(0).toUpperCase()}
+              {initials}
             </button>
             <AnimatePresence>
               {showUserMenu && (
@@ -192,10 +204,10 @@ export default function DashboardPage() {
                   className="absolute right-0 top-12 z-50 w-64 overflow-hidden rounded-2xl bg-card shadow-xl ring-1 ring-foreground/10"
                 >
                   <div className="border-b border-border p-4 text-center">
-                    <div className="mx-auto mb-2 flex size-12 items-center justify-center rounded-full bg-primary text-lg font-bold text-white">
-                      {(user?.fullName || "U").charAt(0).toUpperCase()}
+                    <div className="mx-auto mb-2 flex size-12 items-center justify-center rounded-full bg-primary-container text-lg font-bold text-white border-2 border-white custom-shadow overflow-hidden">
+                      {initials}
                     </div>
-                    <p className="text-sm font-bold text-foreground" style={{ fontFamily: "var(--font-heading)" }}>
+                    <p className="font-headline-sm text-sm font-bold text-foreground">
                       {user?.fullName}
                     </p>
                     {user?.nickname && (
@@ -231,25 +243,23 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <div className="px-4 pt-4">
+      <main className="px-4 space-y-4">
+        {/* Stats Section */}
         <div className="grid grid-cols-2 gap-3">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="rounded-xl bg-card p-4 ring-1 ring-foreground/10"
+            className="glass-card rounded-2xl p-4 flex flex-col border-l-4 border-tertiary-fixed-dim"
           >
-            <div className="mb-2 flex items-center gap-2">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-action-success/10">
-                <ClipboardCheck className="size-4 text-action-success" />
-              </div>
-              <span className="text-xs text-muted-foreground">Vistorias Hoje</span>
+            <div className="flex items-center gap-1.5 mb-2">
+              <span className="material-symbols-outlined text-tertiary-fixed-dim text-sm">assignment_turned_in</span>
+              <span className="font-label-md text-label-md text-on-surface-variant">Vistorias Hoje</span>
             </div>
-            <p className="text-2xl font-bold text-foreground">{stats.today}</p>
-            <div className="mt-1 flex items-center gap-1 text-xs">
-              <TrendingUp className="size-3 text-action-success" />
-              <span className="text-action-success">+{stats.trend}%</span>
-              <span className="text-muted-foreground">vs ontem</span>
+            <p className="font-headline-lg text-headline-lg text-on-surface mb-1">{stats.today}</p>
+            <div className="flex items-center gap-1 text-tertiary-fixed-dim font-bold text-xs">
+              <TrendingUp className="size-3" />
+              <span>+{stats.trend}% <span className="font-normal text-on-surface-variant/60">vs ontem</span></span>
             </div>
           </motion.div>
 
@@ -257,62 +267,59 @@ export default function DashboardPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="rounded-xl bg-card p-4 ring-1 ring-foreground/10"
+            className="glass-card rounded-2xl p-4 flex flex-col border-l-4 border-action-primary"
           >
-            <div className="mb-2 flex items-center gap-2">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-action-primary/10">
-                <Calendar className="size-4 text-action-primary" />
-              </div>
-              <span className="text-xs text-muted-foreground">Total do Mês</span>
+            <div className="flex items-center gap-1.5 mb-2">
+              <Calendar className="size-4 text-action-primary" />
+              <span className="font-label-md text-label-md text-on-surface-variant">Total do Mês</span>
             </div>
-            <p className="text-2xl font-bold text-foreground">{stats.month}</p>
-            <div className="mt-1 flex items-center gap-1 text-xs">
-              <Target className="size-3 text-muted-foreground" />
-              <span className="text-muted-foreground">
-                Meta: {stats.goal > 0 ? `${Math.round((stats.month / stats.goal) * 100)}%` : "—"}
-              </span>
+            <p className="font-headline-lg text-headline-lg text-on-surface mb-1">{stats.month}</p>
+            <div className="flex items-center gap-1 text-on-surface-variant/80 font-bold text-xs">
+              <Target className="size-3" />
+              <span>Meta: {stats.goal > 0 ? `${Math.round((stats.month / stats.goal) * 100)}%` : "—"}</span>
             </div>
           </motion.div>
         </div>
 
+        {/* Nova Vistoria Button */}
         <motion.button
           type="button"
-          whileTap={{ scale: 0.97 }}
+          whileTap={{ scale: 0.98 }}
           onClick={() => router.push("/inspections/new")}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-action-primary py-3.5 text-sm font-bold text-white shadow-lg shadow-action-primary/30"
-          style={{ fontFamily: "var(--font-heading)" }}
+          className="w-full bg-action-primary text-white font-button-text text-button-text py-4 rounded-2xl flex items-center justify-center gap-2 uppercase tracking-widest custom-shadow active:scale-[0.98] transition-transform duration-150"
         >
-          <Plus className="size-5" />
+          <Plus className="size-5 font-bold" />
           NOVA VISTORIA
         </motion.button>
 
-        <div className="mt-6">
-          <div className="mb-3 flex items-center justify-between">
-            <h2
-              className="text-sm font-bold text-foreground"
-              style={{ fontFamily: "var(--font-heading)" }}
-            >
+        {/* Recent Inspections */}
+        <section className="space-y-3">
+          <div className="flex justify-between items-center">
+            <h2 className="font-headline-md text-headline-md text-on-surface tracking-tight uppercase text-sm font-bold">
               ÚLTIMAS VISTORIAS
             </h2>
             <button
               type="button"
               onClick={() => router.push("/inspections")}
-              className="flex items-center gap-0.5 text-xs text-action-primary"
+              className="text-action-primary font-label-md text-label-md flex items-center gap-0.5"
             >
-              Ver todas <ChevronRight className="size-3" />
+              Ver todas
+              <ChevronRight className="size-3" />
             </button>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-2">
             {inspections.length === 0 && (
-              <div className="flex flex-col items-center gap-2 rounded-xl bg-card py-8 text-center ring-1 ring-foreground/10">
-                <ClipboardCheck className="size-8 text-muted-foreground/50" />
+              <div className="glass-card rounded-2xl py-10 text-center">
+                <ClipboardCheck className="size-8 text-muted-foreground/50 mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground">Nenhuma vistoria encontrada</p>
               </div>
             )}
             {inspections.map((inspection, i) => {
               const status = statusConfig[inspection.status] || statusConfig.pending
               const StatusIcon = status.icon
+              const typeIcon = typeIcons[inspection.type] || typeIcons.facilities
+              const TypeIconComponent = typeIcon.icon
               return (
                 <motion.div
                   key={inspection.id}
@@ -320,54 +327,37 @@ export default function DashboardPage() {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.08 }}
                   onClick={() => handleInspectionClick(inspection)}
-                  className="cursor-pointer rounded-xl bg-card ring-1 ring-foreground/10 transition-all hover:ring-2 hover:ring-ring"
+                  className={cn(
+                    "glass-card rounded-2xl p-3 flex items-center justify-between border-l-4 cursor-pointer active:scale-[0.99] transition-transform",
+                    status.borderColor
+                  )}
                 >
-                  <div className="flex items-center gap-3 p-3">
-                    <div
-                      className={cn(
-                        "flex size-10 items-center justify-center rounded-lg",
-                        inspection.type === "limpeza"
-                          ? "bg-action-success/10"
-                          : "bg-primary/10"
-                      )}
-                    >
-                      <Building2
-                        className={cn(
-                          "size-5",
-                          inspection.type === "limpeza"
-                            ? "text-action-success"
-                            : "text-primary"
-                        )}
-                      />
+                  <div className="flex items-center gap-3">
+                    <div className="flex size-12 items-center justify-center rounded-xl bg-surface-container">
+                      <TypeIconComponent className={cn("size-5", typeIcon.color)} />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p
-                        className="truncate text-sm font-semibold text-foreground"
-                        style={{ fontFamily: "var(--font-heading)" }}
-                      >
+                    <div className="flex flex-col">
+                      <p className="font-bold text-on-surface text-sm">
                         {inspection.inspectionNumber}
                       </p>
-                      <p className="truncate text-xs text-muted-foreground">
+                      <p className="text-on-surface-variant/70 text-xs">
                         {inspection.room}
                         {inspection.portfolio ? ` — ${inspection.portfolio.name}` : ""}
                       </p>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <StatusIcon className={cn("size-3.5", status.color)} />
-                      <span
-                        className={cn("text-[11px] font-bold", status.color)}
-                        style={{ fontFamily: "var(--font-sans)" }}
-                      >
-                        {status.label}
-                      </span>
-                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <StatusIcon className={cn("size-3.5", status.color)} style={{ fontVariationSettings: "'FILL' 1" }} />
+                    <span className={cn("text-[10px] font-bold tracking-wider uppercase", status.color)}>
+                      {status.label}
+                    </span>
                   </div>
                 </motion.div>
               )
             })}
           </div>
-        </div>
-      </div>
+        </section>
+      </main>
 
       <FloatingNav />
     </div>
