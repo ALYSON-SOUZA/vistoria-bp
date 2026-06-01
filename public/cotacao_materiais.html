@@ -1,0 +1,1411 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vistoria BP — Cotação de Materiais</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700;800&family=Be+Vietnam+Pro:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --P:#252A34; --PK:#FF2E63; --CY:#08D9D6; --MG:#A82047;
+  --surface:#EAEAEA; --surface-card:#FFFFFF;
+  --on-surface:#1a1c1c; --on-surface-variant:#4B5563;
+  --outline:#76777c; --outline-variant:#c6c6cc;
+  --error:#FF2E63; --error-container:#ffdad6; --on-error-container:#93000a;
+  --green:#4ADE80; --green-dark:#166534;
+  --best-bg:rgba(74,222,128,.15); --best-bg-light:rgba(74,222,128,.07);
+  --best-text:#166534; --best-border:rgba(74,222,128,.35);
+  --card-border:rgba(37,42,52,.05);
+  --shadow-sm:0 1px 2px rgba(37,42,52,.04);
+  --shadow-md:0 4px 16px rgba(37,42,52,.06);
+  --shadow-lg:0 8px 30px rgba(37,42,52,.12);
+  --radius-sm:0.25rem; --radius:0.5rem; --radius-md:0.75rem; --radius-lg:1rem; --radius-xl:1.5rem;
+}
+.app{font-family:'Be Vietnam Pro',sans-serif;background:var(--surface);color:var(--P);padding-bottom:48px;min-height:100vh;}
+.app-header{
+  background:var(--P);padding:14px 24px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.app-header h1{font-family:'Raleway',sans-serif;font-size:18px;font-weight:800;color:#fff;letter-spacing:-0.02em;}
+.app-header .date{font-size:12px;color:var(--CY);font-weight:600;letter-spacing:.06em;text-transform:uppercase;}
+.dashboard{background:var(--surface-card);padding:0 24px 16px;border-bottom:1px solid var(--card-border);}
+.dash-section-label{
+  font-size:10px;font-weight:700;color:var(--on-surface-variant);
+  letter-spacing:.12em;text-transform:uppercase;padding:16px 0 12px;
+}
+.dash-top{display:grid;grid-template-columns:repeat(3,1fr) 1.4fr;gap:12px;}
+.dash-card{
+  background:var(--surface-card);border:1px solid var(--card-border);
+  border-radius:var(--radius-xl);padding:14px 16px;position:relative;overflow:hidden;
+  box-shadow:var(--shadow-sm);transition:transform .15s ease, box-shadow .15s ease;
+  border-left:4px solid transparent;
+}
+.dash-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-md);}
+.dash-card.cy{border-left-color:var(--CY);}
+.dash-card.pk{border-left-color:var(--PK);}
+.dash-card.gr{border-left-color:var(--green);}
+.dash-card.gy{border-left-color:var(--outline);}
+.dc-label{font-size:10px;font-weight:600;color:var(--on-surface-variant);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px;}
+.dc-val{font-family:'Raleway',sans-serif;font-size:22px;font-weight:800;color:var(--P);line-height:1.1;}
+.dc-sub{font-size:10px;color:var(--outline);margin-top:4px;}
+.store-mini-table{width:100%;border-collapse:collapse;margin-top:6px;}
+.store-mini-table tr{border-bottom:1px solid var(--card-border);}
+.store-mini-table tr:last-child{border-bottom:none;}
+.store-mini-table td{padding:5px 2px;font-size:10px;color:var(--on-surface-variant);}
+.store-mini-table td.s-name{font-weight:600;text-transform:uppercase;letter-spacing:.02em;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70px;color:var(--P);}
+.store-mini-table td.s-val{text-align:right;font-weight:700;color:var(--P);font-size:10px;}
+.store-mini-table tr.s-best td{color:var(--P);font-weight:700;}
+.store-mini-table tr.s-best td.s-val{color:var(--P);}
+.star-badge{
+  display:inline-block;background:var(--CY);color:var(--P);
+  font-size:7px;font-weight:800;border-radius:3px;padding:1px 4px;
+  margin-left:3px;vertical-align:middle;
+  animation:pulse-badge 2s ease-in-out infinite;
+}
+@keyframes pulse-badge{0%,100%{opacity:1;}50%{opacity:.7;}}
+.controls{
+  padding:12px 24px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+  background:var(--surface-card);border-bottom:1px solid var(--card-border);
+}
+.controls-label{font-size:12px;font-weight:600;color:var(--P);margin-right:4px;}
+.btn{
+  border:none;border-radius:var(--radius-lg);padding:9px 18px;
+  font-family:'Raleway',sans-serif;font-size:12px;font-weight:700;
+  cursor:pointer;display:inline-flex;align-items:center;gap:6px;
+  transition:all .15s ease;text-decoration:none;white-space:nowrap;
+  text-transform:uppercase;letter-spacing:.03em;
+}
+.btn-add{background:var(--PK);color:#fff;}
+.btn-add:hover{background:#e0224f;transform:translateY(-1px);box-shadow:0 4px 12px rgba(255,46,99,.3);}
+.btn-csv{background:var(--P);color:#fff;}
+.btn-csv:hover{background:#1a1e26;transform:translateY(-1px);}
+.btn-pdf{background:var(--MG);color:#fff;}
+.btn-pdf:hover{background:#8e1a39;transform:translateY(-1px);}
+.btn-xlsx{background:var(--green);color:#fff;}
+.btn-xlsx:hover{background:#16a34a;transform:translateY(-1px);}
+.btn-import{background:var(--CY);color:var(--P);}
+.btn-import:hover{background:#07c4c1;transform:translateY(-1px);}
+.btn-clear{background:var(--error);color:#fff;}
+.btn-clear:hover{background:#cc254f;transform:translateY(-1px);}
+.btn-undo{background:var(--outline);color:#fff;}
+.btn-undo:hover{background:#5e5f66;transform:translateY(-1px);}
+.btn-store{background:var(--P);color:#fff;border:2px solid rgba(255,255,255,0);}
+.btn-store:hover{background:#1a1e26;transform:translateY(-1px);}
+.section-title{
+  padding:20px 24px 10px;font-family:'Raleway',sans-serif;
+  font-size:16px;font-weight:800;color:var(--P);letter-spacing:-.01em;
+}
+.section-title span{font-size:12px;font-weight:500;color:var(--outline);margin-left:8px;font-family:'Be Vietnam Pro',sans-serif;}
+.table-section{padding:0 24px 16px;overflow-x:auto;}
+.price-table{
+  width:100%;border-collapse:collapse;table-layout:fixed;
+  background:var(--surface-card);border-radius:var(--radius-xl);
+  box-shadow:var(--shadow-sm);border:1px solid var(--card-border);
+  overflow:hidden;
+}
+.price-table thead tr.hr-top td{
+  background:var(--P);color:#fff;font-family:'Raleway',sans-serif;
+  font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  padding:8px 6px;position:relative;
+}
+.price-table thead tr.hr-cols th{
+  background:var(--surface-card);color:var(--on-surface-variant);font-family:'Be Vietnam Pro',sans-serif;
+  font-size:9px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;
+  padding:6px 4px;text-align:center;border-bottom:2px solid var(--card-border);
+}
+.price-table thead tr.hr-cols th:first-child{text-align:left;padding-left:12px;}
+.price-table thead tr.hr-cols th:nth-child(2){text-align:center;width:30px;}
+.price-table tbody tr{border-bottom:1px solid var(--card-border);transition:background .12s;}
+.price-table tbody tr:hover{background:var(--surface);}
+.price-table tbody td{
+  padding:5px 4px;font-family:'Be Vietnam Pro',sans-serif;
+  font-size:11px;color:var(--P);vertical-align:middle;
+}
+.price-table tbody td:first-child{font-weight:600;padding-left:12px;}
+.col-qty{text-align:center;}
+.col-price,.col-total{text-align:right;font-variant-numeric:tabular-nums;}
+td.best{background:var(--best-bg)!important;font-weight:700;color:var(--best-text)!important;}
+td.best-u{background:var(--best-bg-light)!important;}
+td.err{background:rgba(255,46,99,.06)!important;}
+.cell-input{
+  border:2px solid transparent;background:var(--surface-card);font-family:'Be Vietnam Pro',sans-serif;
+  font-size:11px;color:var(--P);text-align:right;width:56px;padding:2px 4px;
+  border-radius:var(--radius);outline:none;transition:all .15s;
+  border-color:var(--surface);
+}
+.cell-input:focus{border-color:var(--CY);box-shadow:0 0 0 3px rgba(8,217,214,.15);}
+.cell-input.qi{width:32px;text-align:center;}
+.cell-input.err-input{color:var(--error)!important;font-weight:700;}
+.name-input{
+  border:2px solid transparent;background:var(--surface-card);font-family:'Be Vietnam Pro',sans-serif;
+  font-size:11px;font-weight:600;color:var(--P);width:100%;padding:2px 4px;
+  border-radius:var(--radius);outline:none;transition:all .15s;
+  border-color:var(--surface);
+}
+.name-input:focus{border-color:var(--CY);box-shadow:0 0 0 3px rgba(8,217,214,.15);}
+.name-input.err-input{color:var(--error)!important;}
+.store-name-input{
+  border:none;background:transparent;font-family:'Raleway',sans-serif;
+  font-size:9px;font-weight:700;color:#fff;width:100%;text-align:center;
+  outline:none;padding:2px 4px;border-radius:var(--radius);text-transform:uppercase;
+  letter-spacing:.06em;transition:all .15s;
+}
+.store-name-input:focus{background:rgba(255,255,255,.12);box-shadow:0 0 0 2px rgba(255,255,255,.25);}
+.store-name-input::placeholder{color:rgba(255,255,255,.35);}
+.store-del-btn{
+  position:absolute;top:2px;right:2px;background:rgba(255,46,99,.15);border:none;
+  color:rgba(255,255,255,.5);cursor:pointer;font-size:7px;width:16px;height:16px;
+  border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;
+  transition:all .15s;line-height:1;
+}
+.store-del-btn:hover{background:var(--PK);color:#fff;}
+.ss2{border-left:2px solid var(--card-border);}
+.row-total td{
+  background:var(--P)!important;color:#fff!important;
+  font-family:'Raleway',sans-serif;font-weight:700;font-size:11px;padding:7px 4px;
+}
+.row-total td:first-child{padding-left:12px;}
+.row-best td{
+  background:var(--best-bg)!important;color:var(--best-text)!important;
+  font-family:'Raleway',sans-serif;font-weight:800;font-size:11px;padding:6px 4px;
+  border-top:2px solid var(--best-border);
+}
+.row-best td:first-child{padding-left:12px;}
+.btn-del{
+  background:none;border:none;color:var(--outline);cursor:pointer;
+  font-size:13px;padding:2px 6px;border-radius:var(--radius);
+  transition:all .12s;
+}
+.btn-del:hover{color:var(--PK);background:rgba(255,46,99,.08);}
+.err-row td{background:rgba(255,46,99,.04)!important;}
+.err-badge{
+  display:inline-block;background:var(--PK);color:#fff;
+  font-size:7px;font-weight:700;border-radius:4px;padding:0 5px;
+  margin-left:4px;vertical-align:middle;
+  animation:shake .4s ease-in-out;
+}
+@keyframes shake{0%,100%{transform:translateX(0);}25%{transform:translateX(-2px);}75%{transform:translateX(2px);}}
+.cap-controls-line{
+  display:flex;gap:6px;align-items:center;padding:8px 24px;flex-wrap:wrap;
+  background:var(--surface-card);border-bottom:1px solid var(--card-border);
+}
+.cap-controls-line .month-select{padding:5px 8px;font-size:11px;}
+.cap-controls-line .btn-cap-add{padding:6px 12px;font-size:11px;}
+.cap-section{max-width:unset;}
+.cap-layout{display:flex;gap:14px;align-items:stretch;width:100%;}
+.cap-layout .cap-table{flex:0 0 calc(22% + 30px);width:calc(22% + 30px);min-width:200px;max-width:calc(22% + 30px);}
+.cap-dash{
+  flex:1;min-width:260px;
+}
+.cap-dash-title{
+  font-family:'Raleway',sans-serif;font-size:12px;font-weight:800;
+  color:var(--P);margin-bottom:8px;letter-spacing:-.01em;
+}
+.cap-dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.cap-dash-card{
+  background:var(--surface-card);border-radius:var(--radius-lg);padding:8px 12px;
+  box-shadow:var(--shadow-sm);border:1px solid var(--card-border);
+  position:relative;overflow:hidden;border-left:3px solid transparent;
+}
+.cap-dash-card.cy{border-left-color:var(--CY);}
+.cap-dash-card.pk{border-left-color:var(--PK);}
+.cap-dash-card.gr{border-left-color:var(--green);}
+.cap-dash-card.gy{border-left-color:var(--outline);}
+.cap-dash-card.mg{border-left-color:var(--MG);}
+.cap-dash-card.full{grid-column:1 / -1;}
+.cap-dc-label{font-size:8px;font-weight:600;color:var(--on-surface-variant);letter-spacing:.05em;text-transform:uppercase;margin-bottom:2px;}
+.cap-dc-val{font-family:'Raleway',sans-serif;font-size:12px;font-weight:800;color:var(--P);line-height:1.1;}
+.cap-dc-sub{font-size:8px;color:var(--outline);margin-top:2px;}
+.cap-cotacao-badge{display:inline-flex;align-items:center;gap:4px;background:var(--CY);color:var(--P);border-radius:6px;padding:2px 8px 2px 6px;font-family:'Raleway',sans-serif;font-size:9px;font-weight:800;letter-spacing:.01em;white-space:nowrap;animation:pulse-cotacao 2.5s ease-in-out infinite;}
+@keyframes pulse-cotacao{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(8,217,214,.3);}50%{opacity:.85;box-shadow:0 0 0 3px rgba(8,217,214,0);}}
+.cap-table{
+  width:100%;border-collapse:collapse;background:var(--surface-card);
+  border-radius:var(--radius-xl);overflow:hidden;box-shadow:var(--shadow-sm);
+  border:1px solid var(--card-border);
+}
+.cap-table thead tr.cap-hr td{
+  background:var(--P);color:#fff;font-family:'Raleway',sans-serif;
+  font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  padding:6px 10px;
+}
+.cap-table thead tr.cap-cols th{
+  background:var(--surface-card);color:var(--on-surface-variant);font-family:'Be Vietnam Pro',sans-serif;
+  font-size:8px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;
+  padding:4px 10px;border-bottom:2px solid var(--card-border);
+}
+.cap-table thead tr.cap-cols th:last-child{text-align:right;}
+.cap-table tbody tr{border-bottom:1px solid var(--card-border);transition:background .12s;}
+.cap-table tbody tr:nth-child(odd){background:var(--surface);}
+.cap-table tbody tr:nth-child(even){background:var(--surface-card);}
+.cap-table tbody tr:hover{background:#f0f0f0;}
+.cap-table tbody td{padding:4px 10px;font-family:'Be Vietnam Pro',sans-serif;font-size:11px;color:var(--P);}
+.cap-table tbody td.cap-mes{font-weight:700;color:var(--MG);font-size:11px;}
+.cap-table tbody td.cap-val{text-align:right;font-weight:600;}
+.cap-table tbody td.cap-val-empty{text-align:right;color:#ccc;font-style:italic;font-size:10px;}
+.cap-table tfoot tr.cap-total td{
+  background:var(--P)!important;color:#fff!important;font-family:'Raleway',sans-serif;
+  font-weight:700;font-size:10px;padding:6px 10px;
+}
+.cap-table tfoot tr.cap-avg td{
+  background:rgba(8,217,214,.06)!important;color:var(--P)!important;
+  font-family:'Be Vietnam Pro',sans-serif;font-weight:600;font-size:10px;
+  padding:4px 10px;border-top:2px solid var(--CY);
+}
+.cap-input{
+  border:2px solid transparent;background:var(--surface-card);font-family:'Be Vietnam Pro',sans-serif;
+  font-size:11px;color:var(--P);width:60px;text-align:right;outline:none;
+  padding:2px 4px;border-radius:var(--radius);transition:all .15s;
+  border-color:var(--surface);
+}
+.cap-input:focus{border-color:var(--CY);box-shadow:0 0 0 3px rgba(8,217,214,.15);}
+.btn-cap-add{
+  background:var(--PK);color:#fff;border:none;border-radius:var(--radius-lg);
+  padding:8px 18px;font-family:'Raleway',sans-serif;font-size:12px;font-weight:700;
+  cursor:pointer;display:inline-flex;align-items:center;gap:6px;
+  transition:all .15s;text-transform:uppercase;letter-spacing:.03em;
+}
+.btn-cap-add:hover{background:#e0224f;transform:translateY(-1px);box-shadow:0 4px 12px rgba(255,46,99,.3);}
+.month-select{
+  border:2px solid var(--surface);border-radius:var(--radius);padding:6px 10px;
+  font-family:'Be Vietnam Pro',sans-serif;font-size:12px;color:var(--P);
+  outline:none;cursor:pointer;transition:all .15s;background:var(--surface-card);
+}
+.month-select:focus{border-color:var(--CY);box-shadow:0 0 0 3px rgba(8,217,214,.15);}
+.modal-overlay{
+  position:fixed;top:0;left:0;right:0;bottom:0;
+  background:rgba(37,42,52,.6);backdrop-filter:blur(4px);
+  display:flex;align-items:center;justify-content:center;z-index:100;
+  animation:fadeIn .2s ease;
+}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+.modal-box{
+  background:var(--surface-card);border-radius:var(--radius-xl);padding:32px 32px 24px;
+  max-width:520px;width:90%;box-shadow:var(--shadow-lg);
+  animation:slideUp .25s ease;border:1px solid var(--card-border);
+}
+.modal-box.wide{max-width:620px;}
+@keyframes slideUp{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+.modal-title{font-family:'Raleway',sans-serif;font-size:18px;font-weight:800;color:var(--P);margin-bottom:8px;}
+.modal-msg{font-family:'Be Vietnam Pro',sans-serif;font-size:14px;color:var(--on-surface-variant);line-height:1.6;margin-bottom:16px;}
+.modal-textarea{
+  width:100%;min-height:200px;border:2px solid var(--surface);
+  border-radius:var(--radius-lg);padding:12px;font-family:'Be Vietnam Pro',sans-serif;
+  font-size:14px;color:var(--P);resize:vertical;outline:none;transition:all .15s;background:var(--surface-card);
+}
+.modal-textarea:focus{border-color:var(--CY);box-shadow:0 0 0 3px rgba(8,217,214,.15);}
+.modal-textarea::placeholder{color:#bbb;}
+.modal-hint{font-size:12px;color:var(--outline);margin-top:6px;margin-bottom:14px;}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;}
+.btn-modal-cancel{
+  background:var(--surface);color:var(--P);border:2px solid var(--surface);border-radius:var(--radius-lg);
+  padding:9px 20px;font-family:'Raleway',sans-serif;font-size:12px;font-weight:700;
+  cursor:pointer;transition:all .12s;text-transform:uppercase;letter-spacing:.03em;
+}
+.btn-modal-cancel:hover{background:var(--surface-card);border-color:var(--P);}
+.btn-modal-ok{
+  background:var(--PK);color:#fff;border:none;border-radius:var(--radius-lg);
+  padding:9px 20px;font-family:'Raleway',sans-serif;font-size:12px;font-weight:700;
+  cursor:pointer;transition:all .12s;text-transform:uppercase;letter-spacing:.03em;
+}
+.btn-modal-ok:hover{background:#e0224f;}
+.btn-modal-primary{
+  background:var(--CY);color:var(--P);border:none;border-radius:var(--radius-lg);
+  padding:9px 20px;font-family:'Raleway',sans-serif;font-size:12px;font-weight:700;
+  cursor:pointer;transition:all .12s;text-transform:uppercase;letter-spacing:.03em;
+}
+.btn-modal-primary:hover{background:#07c4c1;}
+.toast{
+  position:fixed;bottom:24px;right:24px;
+  background:var(--P);color:#fff;padding:12px 20px;border-radius:var(--radius-lg);
+  font-family:'Be Vietnam Pro',sans-serif;font-size:13px;font-weight:500;
+  box-shadow:var(--shadow-lg);z-index:200;
+  animation:toastIn .3s ease, toastOut .3s ease 2.5s forwards;
+  display:flex;align-items:center;gap:8px;
+}
+.toast .toast-icon{color:var(--CY);font-size:16px;}
+@keyframes toastIn{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+@keyframes toastOut{from{opacity:1;}to{opacity:0;pointer-events:none;}}
+@media print{
+  @page{size:A4 portrait;margin:4mm 5mm;}
+  .controls,.btn-del,.btn-undo,.btn-cap-add,.month-select,.modal-overlay,.toast,
+  .store-del-btn,.btn-import,.btn-clear,.btn-store,.cap-controls-line{display:none!important;}
+  .app{background:#fff!important;padding:0!important;}
+  .app-header{-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:5px 10px!important;}
+  .app-header h1{font-size:11px!important;}
+  .app-header .date{font-size:8px!important;}
+  .dashboard{-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:0 10px 8px!important;}
+  .dash-top{gap:5px!important;}
+  .dash-section-label{padding:5px 0!important;font-size:8px!important;}
+  .dash-card{-webkit-print-color-adjust:exact;print-color-adjust:exact;border-radius:8px!important;padding:6px 8px!important;}
+  .dc-label{font-size:7px!important;margin-bottom:3px!important;}
+  .dc-val{font-size:11px!important;}
+  .dc-sub{font-size:7px!important;margin-top:2px!important;}
+  .store-mini-table td{padding:2px 2px!important;font-size:7px!important;}
+  .section-title{padding:6px 10px 4px!important;font-size:11px!important;}
+  .table-section{padding:0 10px 8px!important;overflow:visible!important;}
+  .price-table{min-width:unset!important;box-shadow:none!important;border-radius:4px!important;table-layout:fixed;width:100%!important;page-break-inside:avoid!important;}
+  .price-table thead tr.hr-top td{-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:7px!important;padding:3px 3px!important;}
+  .store-name-input{font-size:7px!important;pointer-events:none;}
+  .price-table thead tr.hr-cols th{-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:7px!important;padding:3px 3px!important;}
+  .price-table thead tr.hr-cols th:first-child{padding-left:6px!important;}
+  .price-table tbody td{font-size:7px!important;padding:3px 3px!important;}
+  .price-table tbody td:first-child{padding-left:6px!important;font-size:7px!important;}
+  .cell-input,.name-input{font-size:7px!important;pointer-events:none;width:100%!important;}
+  td.best,td.best-u,td.err,.err-row td{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .row-total td,.row-best td{-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:8px!important;padding:4px 3px!important;}
+  .row-total td:first-child,.row-best td:first-child{padding-left:6px!important;}
+  .cap-section{max-width:100%!important;}
+  .cap-layout{flex-direction:row!important;gap:8px!important;page-break-inside:avoid!important;}
+  .cap-layout .cap-table{flex:0 0 38%!important;width:38%!important;max-width:38%!important;min-width:unset!important;}
+  .cap-layout .cap-dash{flex:1!important;min-width:0!important;}
+  .cap-dash-title{font-size:9px!important;margin-bottom:4px!important;}
+  .cap-dash-grid{grid-template-columns:1fr 1fr 1fr!important;gap:4px!important;}
+  .cap-dash-card{padding:3px 5px!important;border-radius:4px!important;}
+  .cap-dc-label{font-size:6px!important;margin-bottom:1px!important;}
+  .cap-dc-val{font-size:8px!important;}
+  .cap-dc-sub{font-size:6px!important;margin-top:1px!important;}
+  .cap-table{box-shadow:none!important;border-radius:4px!important;}
+  .cap-table thead tr.cap-hr td{-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:6px!important;padding:3px 6px!important;}
+  .cap-table thead tr.cap-cols th{-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:6px!important;padding:2px 6px!important;}
+  .cap-table tbody td{font-size:7px!important;padding:3px 6px!important;}
+  .cap-table tbody tr:nth-child(odd){-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .cap-table tfoot tr td{-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:7px!important;padding:3px 6px!important;}
+  .cap-input{font-size:7px!important;pointer-events:none;}
+  .cap-cotacao-badge{font-size:7px!important;padding:1px 4px!important;}
+  .err-badge{display:none!important;}
+}
+@media(max-width:900px){
+  .dash-top{grid-template-columns:1fr 1fr;gap:8px;}
+  .app-header{padding:14px 16px 10px;}
+  .controls{padding:10px 16px;gap:5px;}
+  .btn{padding:7px 12px;font-size:11px;}
+  .section-title{padding:14px 16px 6px;}
+  .table-section{padding:0 16px 12px;}
+  .cap-layout{flex-direction:column;}
+  .cap-layout .cap-table{flex:unset;width:100%;max-width:100%;min-width:unset;}
+  .cap-dash-grid{grid-template-columns:1fr 1fr;}
+}
+@media(max-width:600px){
+  .dash-top{grid-template-columns:1fr;gap:8px;}
+  .app-header h1{font-size:16px;}
+}
+</style>
+</head>
+<body>
+
+<div class="app" id="appRoot">
+
+  <div class="app-header">
+    <h1>Vistoria BP — Cotação de Materiais</h1>
+    <span class="date" id="currentDate"></span>
+  </div>
+
+  <div class="dashboard">
+    <div class="dash-section-label">Painel de Economia</div>
+    <div class="dash-top">
+      <div class="dash-card cy">
+        <div class="dc-label">Melhor loja (total geral)</div>
+        <div class="dc-val" id="d-best-store">—</div>
+        <div class="dc-sub" id="d-best-total">R$ 0,00 comprando tudo aqui</div>
+      </div>
+      <div class="dash-card pk">
+        <div class="dc-label">Soma dos melhores preços</div>
+        <div class="dc-val" id="d-optimal">R$ 0,00</div>
+        <div class="dc-sub">comprando o mais barato de cada loja</div>
+      </div>
+      <div class="dash-card gr">
+        <div class="dc-label">Economia potencial</div>
+        <div class="dc-val" id="d-savings">R$ 0,00</div>
+        <div class="dc-sub" id="d-savings-pct">vs. melhor loja única</div>
+      </div>
+      <div class="dash-card gy">
+        <div class="dc-label">Soma dos itens mais baratos por loja</div>
+        <table class="store-mini-table" id="miniTable"></table>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <span class="controls-label">Ações:</span>
+    <button class="btn btn-add" onclick="addRow()"><i class="ti ti-plus"></i> Item</button>
+    <button class="btn btn-import" onclick="openImportModal()"><i class="ti ti-clipboard-text"></i> Importar</button>
+    <button class="btn btn-store" onclick="addStore()"><i class="ti ti-building-store"></i> + Loja</button>
+    <button class="btn btn-clear" onclick="clearAll()"><i class="ti ti-trash"></i> Limpar</button>
+    <button class="btn btn-undo" onclick="undo()"><i class="ti ti-arrow-back-up"></i> Desfazer</button>
+    <span style="flex:1;min-width:8px;"></span>
+    <button class="btn btn-csv" onclick="exportCSV()"><i class="ti ti-download"></i> CSV</button>
+    <button class="btn btn-xlsx" onclick="exportXLSX()"><i class="ti ti-file-spreadsheet"></i> XLSX</button>
+    <button class="btn btn-pdf" onclick="exportPDF()"><i class="ti ti-file-type-pdf"></i> PDF</button>
+  </div>
+
+  <div class="section-title">Planilha de Cotação <span>itens em vermelho precisam ser preenchidos</span></div>
+  <div class="table-section">
+    <table class="price-table" id="priceTable">
+      <thead id="tableHead"></thead>
+      <tbody id="tableBody"></tbody>
+      <tfoot id="tableFoot"></tfoot>
+    </table>
+  </div>
+
+  <div class="section-title" style="margin-top:4px;">Histórico de Capacity <span>últimos 7 meses</span></div>
+  <div class="cap-controls-line">
+    <select class="month-select" id="monthSel"></select>
+    <select class="month-select" id="yearSel"></select>
+    <input class="month-select" type="number" id="capInput" placeholder="Cap" style="width:60px;" min="0">
+    <input class="month-select" type="number" id="valInput" placeholder="R$" style="width:76px;" step="0.01" min="0">
+    <button class="btn-cap-add" onclick="addCapMonth()"><i class="ti ti-plus"></i> Adicionar</button>
+  </div>
+  <div class="table-section cap-section">
+    <div class="cap-layout">
+      <table class="cap-table" id="capTable">
+        <thead>
+          <tr class="cap-hr">
+            <td colspan="4">Capacity — Faturamento</td>
+          </tr>
+          <tr class="cap-cols">
+            <th style="width:50px;">Mês</th>
+            <th style="text-align:center;">Func.</th>
+            <th style="text-align:right;">Valor</th>
+            <th style="width:24px;"></th>
+          </tr>
+        </thead>
+        <tbody id="capBody"></tbody>
+        <tfoot id="capFoot"></tfoot>
+      </table>
+      <div class="cap-dash">
+        <div class="cap-dash-title">Estatísticas</div>
+        <div class="cap-dash-grid" id="capDashGrid"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let STORES = ['ELO DISTRIB', 'MUNDIAL', 'MAXLIMP'];
+const MONTHS = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+
+let undoStack = [];
+function pushUndo() {
+  undoStack.push({
+    items: JSON.parse(JSON.stringify(items)),
+    stores: JSON.parse(JSON.stringify(STORES))
+  });
+}
+function undo() {
+  if (!undoStack.length) { showToast('⚠️ Nada para desfazer'); return; }
+  const state = undoStack.pop();
+  items = state.items;
+  STORES = state.stores;
+  renderTable();
+  showToast('Última ação desfeita');
+}
+
+let items = [
+  {name:'DESINFETANTE 5LT',                qty:6,  prices:[7.68,  8.40,  6.66]},
+  {name:'DETERGENTE 5LT',                  qty:5,  prices:[11.78, 11.31, 8.32]},
+  {name:'ESCOVA DE CANTOS',                qty:3,  prices:[9.30,  9.35,  12.45]},
+  {name:'ESCOVA SANITARIO',                qty:3,  prices:[9.71,  3.78,  7.15]},
+  {name:'ESPONJA MULTIUSO',                qty:20, prices:[0.69,  0.70,  0.70]},
+  {name:'ESSENCIA',                        qty:8,  prices:[7.30,  7.34,  17.95]},
+  {name:'FIBRA LIMP GERAL VERDE',          qty:20, prices:[1.85,  1.89,  2.30]},
+  {name:'FLANELA MICROFIBRA',              qty:8,  prices:[4.40,  6.60,  4.30]},
+  {name:'LUSTRA MÓVEIS',                   qty:1,  prices:[5.20,  5.70,  8.45]},
+  {name:'LUVA AMARELA G',                  qty:6,  prices:[4.21,  2.89,  3.45]},
+  {name:'LUVA AZUL G',                     qty:6,  prices:[11.24, 5.85,  6.70]},
+  {name:'MOP UMIDO REFIL',                 qty:4,  prices:[18.29, 14.50, 14.95]},
+  {name:'MULTIUSO - LIMPADOR GERAL',       qty:3,  prices:[21.39, 15.30, 13.00]},
+  {name:'PANO DE CHÃO GRANDE',             qty:12, prices:[2.70,  2.75,  3.35]},
+  {name:'PAPEL HIG 300M FS NOBRE GOEDER',  qty:40, prices:[63.00, 62.99, 70.50]},
+  {name:'SABONETE LIQUIDO',                qty:6,  prices:[17.92, 16.99, 17.55]},
+  {name:'SACO DE LIXO 100L (MICRA 0,7+)',  qty:5,  prices:[59.38, 57.00, 43.85]},
+  {name:'SACO DE LIXO 60L (MICRA 0,7+)',   qty:3,  prices:[12.65, 13.50, 25.95]},
+  {name:'SUPORTE PARA FIBRA VERDE',        qty:2,  prices:[29.40, 27.00, 15.00]},
+  {name:'VASSOURA DE PELO',                qty:4,  prices:[8.83,  8.50,  8.75]},
+];
+
+let capData = [
+  {mes:'set', ano:25, cap:355, val:2413.79},
+  {mes:'out', ano:25, cap:372, val:3070.14},
+  {mes:'nov', ano:25, cap:397, val:3132.75},
+  {mes:'dez', ano:25, cap:414, val:3395.07},
+  {mes:'jan', ano:26, cap:521, val:4214.28},
+  {mes:'fev', ano:26, cap:535, val:3810.29},
+  {mes:'mar', ano:26, cap:557, val:4249.14},
+  {mes:'abr', ano:26, cap:534, val:3278.51},
+  {mes:'mai', ano:26, cap:514, val:3176.85},
+  {mes:'jun', ano:26, cap:538, val:null},
+];
+
+function fmt(v) {
+  return 'R$ ' + v.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+function fmtCap(v) {
+  if (v === null || v === undefined || isNaN(v)) return null;
+  return 'R$ ' + Number(v).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+function parse(s) {
+  return parseFloat(String(s).replace(/\./g, '').replace(',', '.')) || 0;
+}
+function tot(it, si) {
+  return it.qty * (it.prices[si] || 0);
+}
+
+function getOptimalCotacao() {
+  if (!items.length) return 0;
+  return items.reduce((sum, it) => {
+    const ts = STORES.map((_, i) => tot(it, i)).filter(t => t > 0);
+    return sum + (ts.length ? Math.min(...ts) : 0);
+  }, 0);
+}
+function bestIdx(it) {
+  const ts = STORES.map((_, i) => tot(it, i));
+  const valid = ts.filter(t => t > 0);
+  if (!valid.length) return -1;
+  return ts.indexOf(Math.min(...valid));
+}
+function sortItems() {
+  items.sort((a, b) => a.name.localeCompare(b.name, 'pt'));
+}
+function isRowErr(it) {
+  return !it.name.trim() || it.qty <= 0 || it.prices.every(p => !p);
+}
+
+function escHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function renderHeader() {
+  const head = document.getElementById('tableHead');
+  const n = STORES.length;
+  const nameW = Math.max(15, Math.min(35, Math.round(80 / (n + 1))));
+  const storeW = Math.floor((99 - nameW) / n);
+  let hr1 = `<tr class="hr-top"><td colspan="2" style="width:${nameW}%;">Itens</td>`;
+  let hr2 = '<tr class="hr-cols"><th style="text-align:left;padding-left:12px;">Produto</th><th style="width:30px;">Qtd</th>';
+  for (let i = 0; i < n; i++) {
+    const border = i > 0 ? 'border-left:2px solid rgba(255,255,255,.15);' : '';
+    hr1 += `<td colspan="2" style="width:${storeW}%;text-align:center;${border}position:relative;">
+      <input class="store-name-input" value="${escHtml(STORES[i])}" placeholder="LOJA ${i+1}"
+        onchange="renameStore(${i},this.value)" onblur="renameStore(${i},this.value)"/>
+      <button class="store-del-btn" onclick="event.stopPropagation();removeStore(${i})" title="Remover loja">✕</button>
+    </td>`;
+    const cls = i > 0 ? ' class="ss2"' : '';
+    hr2 += `<th${cls}>R$ Unit.</th><th>R$ Total</th>`;
+  }
+  hr1 += '<td></td></tr>';
+  hr2 += '<th></th></tr>';
+  head.innerHTML = hr1 + hr2;
+}
+
+function renderTable() {
+  sortItems();
+  renderHeader();
+  const tbody = document.getElementById('tableBody');
+  const tfoot = document.getElementById('tableFoot');
+  tbody.innerHTML = '';
+  tfoot.innerHTML = '';
+
+  const n = STORES.length;
+  const grand = new Array(n).fill(0);
+  const bsum = new Array(n).fill(0);
+
+  items.forEach((item, ri) => {
+    const ts = STORES.map((_, i) => tot(item, i));
+    const bi = bestIdx(item);
+    const hasErr = isRowErr(item);
+    const nameEmpty = !item.name.trim();
+    const qtyEmpty  = item.qty <= 0;
+
+    ts.forEach((t, i) => { if (t > 0) grand[i] += t; });
+    if (bi >= 0 && ts[bi] > 0) bsum[bi] += ts[bi];
+
+    const tr = document.createElement('tr');
+    if (hasErr) tr.className = 'err-row';
+
+    let h = `
+      <td style="${nameEmpty ? 'background:rgba(255,46,99,.1)!important;' : ''}">
+        <button class="btn-del" onclick="delRow(${ri})" title="Excluir item" style="float:left;margin:0 4px 0 0">✕</button>
+        <input class="name-input${nameEmpty ? ' err-input' : ''}"
+               value="${escHtml(item.name)}"
+               onchange="uName(${ri},this.value)"
+               onblur="uName(${ri},this.value)}"/>
+        ${nameEmpty ? '<span class="err-badge">!</span>' : ''}
+      </td>
+      <td class="col-qty" style="${qtyEmpty ? 'background:rgba(255,46,99,.1)!important;' : ''}">
+        <input class="cell-input qi${qtyEmpty ? ' err-input' : ''}"
+               type="number" min="1" value="${item.qty}"
+               onchange="uQty(${ri},this.value)}"/>
+      </td>`;
+
+    for (let si = 0; si < n; si++) {
+      const isB = (si === bi) && bi >= 0 && !hasErr;
+      const priceEmpty = !item.prices[si];
+      const t = ts[si];
+      const cls = si > 0 ? ' ss2' : '';
+
+      h += `
+        <td class="col-price${cls}${isB ? ' best-u' : ''}${priceEmpty ? ' err' : ''}">
+          <input class="cell-input${priceEmpty ? ' err-input' : ''}"
+                 value="${item.prices[si] ? item.prices[si].toFixed(2).replace('.', ',') : ''}"
+                 placeholder="0,00"
+                 onchange="uPrice(${ri},${si},this.value)"
+                 style="color:${isB ? 'var(--best-text)' : priceEmpty ? 'var(--error)' : 'inherit'};font-weight:${isB ? 700 : 400}"/>
+        </td>
+        <td class="col-total${isB ? ' best' : priceEmpty ? ' err' : ''}">
+          ${t > 0 ? fmt(t) : (priceEmpty ? '<span style="color:var(--error);font-size:11px;font-weight:700;">—</span>' : '—')}
+        </td>`;
+    }
+
+
+    tr.innerHTML = h;
+    tbody.appendChild(tr);
+  });
+
+  const totalColspan = 2 + n * 2;
+  const trT = document.createElement('tr');
+  trT.className = 'row-total';
+  let th = `<td colspan="2">TOTAL GERAL</td>`;
+  grand.forEach((t, i) => {
+    const cls = i > 0 ? ' class="ss2"' : '';
+    th += `<td${cls} colspan="2" style="text-align:right">${t > 0 ? fmt(t) : '—'}</td>`;
+  });
+  trT.innerHTML = th;
+  tfoot.appendChild(trT);
+
+  const trB = document.createElement('tr');
+  trB.className = 'row-best';
+  let bh = `<td colspan="2" style="font-size:11px;letter-spacing:.05em;text-transform:uppercase;">Soma dos itens mais baratos por loja</td>`;
+  bsum.forEach((s, i) => {
+    const cls = i > 0 ? ' class="ss2"' : '';
+    bh += `<td${cls} colspan="2" style="text-align:right">${s > 0 ? fmt(s) : '—'}</td>`;
+  });
+  trB.innerHTML = bh;
+  tfoot.appendChild(trB);
+
+  updateDash(grand, bsum);
+}
+
+function updateDash(grand, bsum) {
+  const valid = grand.map((t, i) => ({t, i})).filter(x => x.t > 0);
+  if (!valid.length) {
+    document.getElementById('d-best-store').textContent = '—';
+    document.getElementById('d-best-total').textContent = 'sem dados';
+    document.getElementById('d-optimal').textContent = 'R$ 0,00';
+    document.getElementById('d-savings').textContent = 'R$ 0,00';
+    document.getElementById('d-savings-pct').textContent = 'vs. melhor loja única';
+    document.getElementById('miniTable').innerHTML = '';
+    return;
+  }
+
+  const mn = valid.reduce((a, b) => a.t < b.t ? a : b);
+  document.getElementById('d-best-store').textContent = STORES[mn.i];
+  document.getElementById('d-best-total').textContent = fmt(mn.t) + ' comprando tudo aqui';
+
+  const opt = bsum.reduce((a, b) => a + b, 0);
+  document.getElementById('d-optimal').textContent = fmt(opt);
+
+  const sav = Math.max(0, mn.t - opt);
+  document.getElementById('d-savings').textContent = fmt(sav);
+
+  const pct = mn.t > 0 ? (sav / mn.t * 100) : 0;
+  document.getElementById('d-savings-pct').textContent = pct.toFixed(1) + '% vs. ' + STORES[mn.i];
+
+  const tbl = document.getElementById('miniTable');
+  tbl.innerHTML = '';
+  const positiveBsum = bsum.filter(s => s > 0);
+  const minB = positiveBsum.length ? Math.min(...positiveBsum) : 0;
+
+  STORES.forEach((st, i) => {
+    const isMin = bsum[i] === minB && bsum[i] > 0;
+    const allB = bsum.reduce((a, b) => a + b, 0);
+    const p = allB > 0 ? (bsum[i] / allB * 100) : 0;
+    const tr = document.createElement('tr');
+    if (isMin) tr.className = 's-best';
+    tr.innerHTML = `
+      <td class="s-name">${escHtml(st)}${isMin ? '<span class="star-badge">MELHOR</span>' : ''}</td>
+      <td class="s-val">${bsum[i] > 0 ? fmt(bsum[i]) : '—'}</td>
+      <td style="text-align:right;font-size:9px;color:var(--outline);padding-left:4px;">
+        ${bsum[i] > 0 ? p.toFixed(0) + '%' : ''}
+      </td>`;
+    tbl.appendChild(tr);
+  });
+  renderCap();
+}
+
+function uName(ri, v) {
+  pushUndo();
+  items[ri].name = v.toUpperCase();
+  renderTable();
+}
+
+function uQty(ri, v) {
+  pushUndo();
+  items[ri].qty = Math.max(0, parseInt(v) || 0);
+  renderTable();
+}
+
+function uPrice(ri, si, v) {
+  pushUndo();
+  items[ri].prices[si] = parse(v);
+  renderTable();
+}
+
+function delRow(ri) {
+  pushUndo();
+  const name = items[ri].name || 'item sem nome';
+  items.splice(ri, 1);
+  renderTable();
+  showToast(`"${name}" removido`);
+}
+
+function addRow() {
+  pushUndo();
+  const prices = new Array(STORES.length).fill(0);
+  items.push({name: 'NOVO ITEM', qty: 1, prices});
+  sortItems();
+  renderTable();
+  setTimeout(() => {
+    const ins = document.querySelectorAll('.name-input');
+    ins.forEach(inp => {
+      if (inp.value === 'NOVO ITEM') { inp.focus(); inp.select(); }
+    });
+  }, 50);
+  showToast('Novo item adicionado');
+}
+
+// ── STORE MANAGEMENT ──
+function addStore() {
+  pushUndo();
+  const idx = STORES.length + 1;
+  STORES.push(`LOJA ${idx}`);
+  items.forEach(it => it.prices.push(0));
+  renderTable();
+  showToast(`Loja ${idx} adicionada`);
+}
+
+function renameStore(idx, v) {
+  pushUndo();
+  const name = v.toUpperCase().trim() || `LOJA ${idx+1}`;
+  STORES[idx] = name;
+  renderTable();
+}
+
+function removeStore(idx) {
+  if (STORES.length <= 2) {
+    showToast('⚠️ É necessário pelo menos 2 lojas');
+    return;
+  }
+  const name = STORES[idx];
+  showModal('Remover loja?',
+    `Deseja remover <strong>${escHtml(name)}</strong> e todos os preços desta loja?`,
+    () => {
+      pushUndo();
+      STORES.splice(idx, 1);
+      items.forEach(it => it.prices.splice(idx, 1));
+      renderTable();
+      showToast(`"${name}" removida`);
+    }, null);
+}
+
+function clearAll() {
+  if (!items.length) { showToast('⚠️ Nenhum item para limpar'); return; }
+  showModal('Limpar tudo?',
+    'Todos os itens da cotação serão removidos.',
+    () => {
+      pushUndo();
+      items = []; renderTable(); showToast('Todos os itens removidos');
+    }, null);
+}
+
+function openImportModal() {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-box wide">
+      <div class="modal-title">Importar planilha</div>
+      <div class="modal-msg">Faça upload de uma planilha (.ods, .csv, .xlsx, .xls, .xlsm, .gsheet) ou cole um link do Google Sheets.</div>
+      <div style="margin-bottom:12px;">
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--P);margin-bottom:4px;">Arquivo:</label>
+        <input type="file" id="importFileInput" accept=".ods,.csv,.xlsx,.xls,.xlsm,.gsheet" style="font-family:'Be Vietnam Pro',sans-serif;font-size:13px;color:var(--P);">
+      </div>
+      <div style="margin-bottom:12px;position:relative;">
+        <div style="border-top:1px solid var(--card-border);text-align:center;margin:8px 0;">
+          <span style="font-size:10px;color:var(--outline);background:var(--surface-card);padding:0 8px;position:relative;top:-9px;">ou</span>
+        </div>
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--P);margin-bottom:4px;">Google Sheets URL:</label>
+        <input type="url" id="importGSheetUrl" class="month-select" placeholder="https://docs.google.com/spreadsheets/d/..." style="width:100%;">
+      </div>
+      <div class="modal-hint">A planilha deve conter: <strong>Produto</strong> | <strong>Qtd</strong> | <strong>Preço de cada loja</strong> nas colunas seguintes.</div>
+      <div class="modal-actions">
+        <button class="btn-modal-cancel" id="importCancel">Cancelar</button>
+        <button class="btn-modal-primary" id="importConfirm"><i class="ti ti-upload"></i> Importar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  document.getElementById('importCancel').onclick = () => overlay.remove();
+  document.getElementById('importConfirm').onclick = async () => {
+    const fileInput = document.getElementById('importFileInput');
+    const gsheetUrl = document.getElementById('importGSheetUrl').value.trim();
+
+    if (!fileInput.files.length && !gsheetUrl) {
+      showToast('⚠️ Selecione um arquivo ou cole uma URL do Google Sheets');
+      return;
+    }
+
+    overlay.remove();
+
+    try {
+      if (gsheetUrl) {
+        await importFromGSheet(gsheetUrl);
+      } else {
+        await importFromFile(fileInput.files[0]);
+      }
+    } catch(e) {
+      showToast('⚠️ Erro ao importar: ' + e.message);
+      console.error(e);
+    }
+  };
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+}
+
+function parseSpreadsheet(workbook) {
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const data = XLSX.utils.sheet_to_json(sheet, {header: 1, defval: '', raw: true});
+  if (!data || !data.length) return null;
+
+  let stores = [];
+  let startRow = 0;
+  let priceColStep = 1;
+
+  const row0 = data[0].map(v => String(v).trim().toUpperCase());
+
+  const isExportFormat = (row0[0] || '').includes('ITEN') ||
+    (row0[0] === '' && data[1] && String(data[1][0]).trim().toUpperCase().includes('PRODUT'));
+
+  if (isExportFormat) {
+    const row1 = data[1] ? data[1].map(v => String(v).trim().toUpperCase()) : [];
+    for (let c = 2; c < (data[0] || []).length; c += 2) {
+      const v = String(data[0][c]).trim();
+      if (v) stores.push(v);
+    }
+    if (!stores.length) {
+      for (let c = 2; c < (data[1] || []).length; c += 2) {
+        const v = String(data[1] && data[1][c] || '').trim();
+        if (v && !v.includes('R$')) stores.push(v);
+      }
+    }
+    startRow = 2;
+    priceColStep = 2;
+  } else {
+    const firstRowHasStore = data[0].length > 2 &&
+      !(row0[0] && (row0[0].includes('PRODUT') || row0[0].includes('ITEM'))) &&
+      data[0].every((v, i) => i < 2 || (typeof v === 'number' || /^[\d.,]+$/.test(String(v).trim())));
+
+    if (firstRowHasStore || (data[0].length > 2 && !row0[0])) {
+      for (let c = 2; c < data[0].length; c++) {
+        const v = String(data[0][c]).trim();
+        if (v && !v.includes('R$')) stores.push(v);
+      }
+      startRow = 1;
+      priceColStep = 1;
+    }
+  }
+
+  if (!stores.length) stores = [...STORES];
+
+  const items = [];
+  for (let r = startRow; r < data.length; r++) {
+    const row = data[r];
+    if (!row || !row.length) continue;
+    const name = String(row[0] || '').trim().toUpperCase();
+    if (!name || name.includes('TOTAL') || name.includes('SOMA') || name.includes('MÉDIA') || name.includes('MEDIA')) continue;
+    const qty = parseInt(row[1]) || 1;
+    const prices = [];
+    if (stores.length && row.length > 2) {
+      for (let c = 2; c < Math.min(2 + stores.length * priceColStep, row.length); c += priceColStep) {
+        const val = row[c] !== undefined && row[c] !== '' ? row[c] : 0;
+        const num = typeof val === 'number' ? val : parseFloat(String(val).replace(',', '.')) || 0;
+        prices.push(num);
+      }
+    }
+    while (prices.length < stores.length) prices.push(0);
+    items.push({name, qty, prices: prices.slice(0, stores.length)});
+  }
+
+  if (!items.length) return null;
+  return {stores, items};
+}
+
+async function importFromFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+
+  if (ext === 'gsheet') {
+    const text = await file.text();
+    let json;
+    try { json = JSON.parse(text); } catch(e) { throw new Error('.gsheet inválido'); }
+    let sheetId = json.targetId;
+    if (!sheetId && json.resourceId) sheetId = json.resourceId.split(':').pop();
+    if (!sheetId && json.url) {
+      const m = json.url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+      if (m) sheetId = m[1];
+    }
+    if (!sheetId) throw new Error('Não foi possível extrair o ID do .gsheet');
+    await importFromGSheet('https://docs.google.com/spreadsheets/d/' + sheetId + '/edit');
+    return;
+  }
+
+  const arrayBuffer = await file.arrayBuffer();
+  const workbook = XLSX.read(arrayBuffer, {type: 'array', raw: true, cellDates: false});
+  const result = parseSpreadsheet(workbook);
+  if (!result || !result.items.length) { showToast('⚠️ Nenhum item encontrado na planilha'); return; }
+  pushUndo();
+  STORES = result.stores;
+  items = result.items;
+  renderTable();
+  showToast(`${result.items.length} item(ns) importado(s) de ${result.stores.length} loja(s)`);
+}
+
+async function importFromGSheet(url) {
+  const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  if (!match) throw new Error('URL do Google Sheets inválida');
+  const exportUrl = `https://docs.google.com/spreadsheets/d/${match[1]}/export?format=xlsx`;
+  const resp = await fetch(exportUrl);
+  if (!resp.ok) throw new Error('Não foi possível acessar a planilha (verifique se está publicada)');
+  const arrayBuffer = await resp.arrayBuffer();
+  const workbook = XLSX.read(arrayBuffer, {type: 'array', raw: true, cellDates: false});
+  const result = parseSpreadsheet(workbook);
+  if (!result || !result.items.length) { showToast('⚠️ Nenhum item encontrado'); return; }
+  pushUndo();
+  STORES = result.stores;
+  items = result.items;
+  renderTable();
+  showToast(`${result.items.length} item(ns) importado(s) de ${result.stores.length} loja(s)`);
+}
+
+function capSortKey(c) {
+  return c.ano * 100 + MONTHS.indexOf(c.mes);
+}
+
+function getVisibleCap() {
+  const sorted = [...capData].sort((a, b) => capSortKey(a) - capSortKey(b));
+  if (sorted.length <= 7) return sorted;
+  return sorted.slice(sorted.length - 7);
+}
+
+function renderCap() {
+  const visible = getVisibleCap();
+  const tbody = document.getElementById('capBody');
+  const tfoot = document.getElementById('capFoot');
+  tbody.innerHTML = '';
+  tfoot.innerHTML = '';
+
+  let totalCap = 0, totalVal = 0;
+  let countCap = 0, countVal = 0;
+
+  const optCot = getOptimalCotacao();
+
+  visible.forEach((row) => {
+    const tr = document.createElement('tr');
+    const realIdx = capData.findIndex(c => c.mes === row.mes && c.ano === row.ano);
+    const valDisplay = row.val !== null && row.val !== undefined ? fmtCap(row.val) : null;
+    const isEmpty = row.val === null || row.val === undefined;
+
+    const cotBadge = (isEmpty && optCot > 0)
+      ? `<span class="cap-cotacao-badge" title="Soma dos menores preços da cotação atual">R$ ${optCot.toFixed(2).replace('.', ',')}</span>`
+      : '';
+
+    tr.innerHTML = `
+      <td class="cap-mes">${row.mes}/${row.ano}</td>
+      <td style="text-align:center;">
+        <input class="cap-input" type="number"
+               value="${row.cap !== null && row.cap !== undefined ? row.cap : ''}"
+               placeholder="—"
+               onchange="uCap(${realIdx},this.value)"
+               style="text-align:center;width:70px;"/>
+      </td>
+      <td class="${valDisplay ? 'cap-val' : 'cap-val-empty'}">
+        <span style="display:inline-flex;align-items:center;gap:6px;justify-content:flex-end;width:100%;">
+          ${cotBadge}
+          <input class="cap-input" type="text"
+                 value="${valDisplay || ''}"
+                 placeholder="a preencher"
+                 onchange="uCapVal(${realIdx},this.value)"
+                 style="width:120px;${!valDisplay ? 'color:#bbb;' : ''}"/>
+        </span>
+      </td>
+      <td><button class="btn-del" onclick="delCapRow(${realIdx})" title="Excluir mês">✕</button></td>`;
+    tbody.appendChild(tr);
+    if (row.cap) { totalCap += Number(row.cap); countCap++; }
+    if (row.val) { totalVal += Number(row.val); countVal++; }
+  });
+
+  const tf = document.createElement('tr');
+  tf.className = 'cap-total';
+  tf.innerHTML = `
+    <td>Total</td>
+    <td style="text-align:center;font-weight:700;">${totalCap || '—'}</td>
+    <td style="text-align:right;font-weight:700;">${totalVal ? fmt(totalVal) : '—'}</td>
+    <td></td>`;
+  tfoot.appendChild(tf);
+
+  const avgCap = countCap > 0 ? (totalCap / countCap) : 0;
+  const avgVal = countVal > 0 ? (totalVal / countVal) : 0;
+  const tfAvg = document.createElement('tr');
+  tfAvg.className = 'cap-avg';
+  tfAvg.innerHTML = `
+    <td style="font-weight:700;">Média</td>
+    <td style="text-align:center;">${countCap > 0 ? avgCap.toFixed(0) + ' func.' : '—'}</td>
+    <td style="text-align:right;">${countVal > 0 ? fmt(avgVal) + '/mês' : '—'}</td>
+    <td></td>`;
+  tfoot.appendChild(tfAvg);
+  renderCapDash();
+}
+
+function renderCapDash() {
+  const visible = getVisibleCap();
+  const el = document.getElementById('capDashGrid');
+  if (!visible.length) { el.innerHTML = '<div style="color:#aaa;font-size:12px;text-align:center;grid-column:1/-1;padding:16px 0;">Sem dados</div>'; return; }
+
+  const validVal = visible.filter(r => r.val !== null && r.val !== undefined);
+  const validCap = visible.filter(r => r.cap !== null && r.cap !== undefined);
+
+  const totalMonths = visible.length;
+  const avgCap = validCap.length ? validCap.reduce((s, r) => s + r.cap, 0) / validCap.length : 0;
+  const avgVal = validVal.length ? validVal.reduce((s, r) => s + r.val, 0) / validVal.length : 0;
+  const avgPerCap = avgCap > 0 ? avgVal / avgCap : 0;
+
+  const maxVal = validVal.length ? validVal.reduce((a, b) => a.val > b.val ? a : b) : null;
+  const minVal = validVal.length ? validVal.reduce((a, b) => a.val < b.val ? a : b) : null;
+
+  const lastCap = validCap.length ? validCap[validCap.length - 1].cap : 0;
+  const projectedVal = lastCap * avgPerCap;
+  const totalVal = validVal.reduce((s, r) => s + r.val, 0);
+
+  const lastWithVal = [...validVal].sort((a,b) => (a.ano*100+MONTHS.indexOf(a.mes)) - (b.ano*100+MONTHS.indexOf(b.mes)));
+  const lastMonth = lastWithVal.length ? lastWithVal[lastWithVal.length - 1] : null;
+  const lastMonthRecPerCap = (lastMonth && lastMonth.cap && lastMonth.cap > 0)
+    ? lastMonth.val / lastMonth.cap : null;
+
+  const optCot = getOptimalCotacao();
+  const lastCapMonth = validCap.length ? validCap[validCap.length - 1] : null;
+  const cotPerCap = (optCot > 0 && lastCapMonth && lastCapMonth.cap > 0)
+    ? optCot / lastCapMonth.cap : null;
+
+  const f = v => 'R$ ' + v.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const card = (cls, label, val, sub) =>
+    `<div class="cap-dash-card ${cls}"><div class="cap-dc-label">${label}</div><div class="cap-dc-val">${val}</div>${sub ? `<div class="cap-dc-sub">${sub}</div>` : ''}</div>`;
+
+  let h = '';
+  h += card('cy', 'Média funcionários', avgCap ? avgCap.toFixed(0) : '—', totalMonths + ' meses registrados');
+  h += card('pk', 'Média faturamento', avgVal > 0 ? f(avgVal) : '—', '/mês');
+  h += card('gr', 'Faturamento total', totalVal > 0 ? f(totalVal) : '—', 'soma do período');
+  h += card('mg', 'Média R$/func.', avgPerCap > 0 ? f(avgPerCap) : '—', 'média histórica');
+
+  if (maxVal) h += card('gy', 'Maior faturamento', f(maxVal.val), maxVal.mes + '/' + maxVal.ano);
+  if (minVal) h += card('gy', 'Menor faturamento', f(minVal.val), minVal.mes + '/' + minVal.ano);
+
+  if (lastMonth) {
+    const recLabel = lastMonthRecPerCap !== null
+      ? f(lastMonthRecPerCap)
+      : '—';
+    const recSub = lastMonth.mes + '/' + lastMonth.ano
+      + (cotPerCap !== null ? ` · custo cot. ${f(cotPerCap)}/func.` : '');
+    h += card('cy full', 'Receita por funcionario — ultimo mes', recLabel, recSub);
+  }
+
+  if (projectedVal > 0) h += card('pk full', 'Previsao proximo mes', f(projectedVal), 'baseado na media R$/funcionario x ultimo capacity');
+
+  el.innerHTML = h;
+}
+
+function uCap(idx, v) {
+  if (idx >= 0 && idx < capData.length) { capData[idx].cap = parseInt(v) || null; renderCap(); }
+}
+function uCapVal(idx, v) {
+  if (idx >= 0 && idx < capData.length) {
+    const raw = v.replace(/\./g, '').replace(',', '.');
+    capData[idx].val = parseFloat(raw) || null;
+    renderCap();
+  }
+}
+function delCapRow(idx) {
+  if (idx >= 0 && idx < capData.length) {
+    const row = capData[idx]; capData.splice(idx, 1); renderCap();
+    showToast(`Mes ${row.mes}/${row.ano} removido`);
+  }
+}
+
+function addCapMonth() {
+  const mes = document.getElementById('monthSel').value;
+  const ano = parseInt(document.getElementById('yearSel').value) % 100;
+  const cap = parseInt(document.getElementById('capInput').value) || null;
+  const val = parseFloat(document.getElementById('valInput').value) || null;
+  if (!mes) return;
+
+  const exists = capData.find(c => c.mes === mes && c.ano === ano);
+  if (exists) { showToast('⚠️ Este mes ja esta cadastrado.'); return; }
+
+  capData.push({mes, ano, cap, val});
+  capData.sort((a, b) => capSortKey(a) - capSortKey(b));
+
+  const sorted = [...capData].sort((a, b) => capSortKey(a) - capSortKey(b));
+  if (sorted.length > 7) {
+    const toDelete = sorted[0];
+    showModal('Excluir mes antigo?',
+      `A planilha suporta apenas 7 meses.<br><br>O mes mais antigo (<strong>${toDelete.mes}/${toDelete.ano}</strong>) sera removido.<br><br>Deseja continuar?`,
+      () => {
+        const idx = capData.findIndex(c => c.mes === toDelete.mes && c.ano === toDelete.ano);
+        if (idx >= 0) capData.splice(idx, 1);
+        renderCap();
+        showToast(`Mes ${toDelete.mes}/${toDelete.ano} removido`);
+      },
+      () => {
+        const idx = capData.findIndex(c => c.mes === mes && c.ano === ano);
+        if (idx >= 0) capData.splice(idx, 1);
+        renderCap();
+      }
+    );
+  } else {
+    renderCap();
+    showToast(`Mes ${mes}/${ano} adicionado`);
+  }
+
+  document.getElementById('capInput').value = '';
+  document.getElementById('valInput').value = '';
+}
+
+function showModal(title, msg, onOk, onCancel) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-box">
+      <div class="modal-title">${title}</div>
+      <div class="modal-msg">${msg}</div>
+      <div class="modal-actions">
+        <button class="btn-modal-cancel" id="mCancel">${onCancel !== null ? 'Cancelar' : 'Fechar'}</button>
+        ${onOk ? '<button class="btn-modal-ok" id="mOk">Confirmar</button>' : ''}
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const okBtn = document.getElementById('mOk');
+  const cancelBtn = document.getElementById('mCancel');
+  if (okBtn) okBtn.onclick = () => { overlay.remove(); if (onOk) onOk(); };
+  cancelBtn.onclick = () => { overlay.remove(); if (onCancel) onCancel(); };
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) { overlay.remove(); if (onCancel) onCancel(); }
+  });
+}
+
+function showToast(msg) {
+  const existing = document.querySelector('.toast');
+  if (existing) existing.remove();
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  const icon = msg.includes('⚠️') ? '' : '<span class="toast-icon"><i class="ti ti-check"></i></span>';
+  toast.innerHTML = `${icon} ${msg.replace('⚠️ ','')}`;
+  document.body.appendChild(toast);
+  setTimeout(() => { if (toast.parentNode) toast.remove(); }, 3000);
+}
+
+function populateSelects() {
+  const mSel = document.getElementById('monthSel');
+  const ySel = document.getElementById('yearSel');
+  MONTHS.forEach(m => {
+    const o = document.createElement('option');
+    o.value = m; o.textContent = m; mSel.appendChild(o);
+  });
+  const cy = new Date().getFullYear();
+  for (let y = cy - 1; y <= cy + 2; y++) {
+    const o = document.createElement('option');
+    o.value = y; o.textContent = y; if (y === cy) o.selected = true; ySel.appendChild(o);
+  }
+}
+
+function exportCSV() {
+  const n = STORES.length;
+  let csv = '=== COTACAO DE MATERIAIS ===\n';
+  csv += 'Produto;Qtd';
+  STORES.forEach(s => { csv += `;${s} Unit;${s} Total`; });
+  csv += '\n';
+
+  items.forEach(it => {
+    let r = [it.name, it.qty];
+    for (let si = 0; si < n; si++) {
+      r.push(it.prices[si] ? it.prices[si].toFixed(2).replace('.', ',') : '0,00');
+      r.push((it.qty * (it.prices[si] || 0)).toFixed(2).replace('.', ','));
+    }
+    csv += r.join(';') + '\n';
+  });
+
+  const grand = new Array(n).fill(0);
+  const bsum = new Array(n).fill(0);
+  items.forEach(it => {
+    const bi = bestIdx(it);
+    STORES.forEach((_, i) => {
+      const t = tot(it, i);
+      if (t > 0) grand[i] += t;
+      if (i === bi && bi >= 0 && t > 0) bsum[i] += t;
+    });
+  });
+  csv += 'TOTAL GERAL;';
+  grand.forEach(t => csv += `;${t.toFixed(2).replace('.',',')};`);
+  csv += '\n';
+  csv += 'SOMA ITENS MAIS BARATOS;';
+  bsum.forEach(s => csv += `;${s.toFixed(2).replace('.',',')};`);
+  csv += '\n\n=== HISTORICO DE CAPACITY ===\nMes;Funcionarios;Valor\n';
+  getVisibleCap().forEach(r => {
+    csv += `${r.mes}/${r.ano};${r.cap || ''};${r.val ? r.val.toFixed(2).replace('.', ',') : ''}\n`;
+  });
+
+  const b = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+  const u = URL.createObjectURL(b);
+  const a = document.createElement('a');
+  a.href = u; a.download = 'cotacao_vistoria_bp.csv'; a.click();
+  URL.revokeObjectURL(u);
+  showToast('CSV exportado');
+}
+
+function exportXLSX() {
+  try {
+    const wb = XLSX.utils.book_new();
+    const n = STORES.length;
+    const startRow = 3;
+    const endRow = startRow + items.length - 1;
+    const totalRow = endRow + 1;
+    const bestRow = totalRow + 1;
+    const capStart = 3;
+    const capEnd = capStart + getVisibleCap().length - 1;
+
+    function colLetter(idx) {
+      let c = '';
+      let i = idx;
+      while (i >= 0) { c = String.fromCharCode(65 + (i % 26)) + c; i = Math.floor(i / 26) - 1; }
+      return c;
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet([]);
+
+    const headerRow = ['Itens', ''];
+    const subRow = ['Produto', 'Qtd'];
+    const merges = [{s:{r:0,c:0}, e:{r:0,c:1}}];
+    for (let i = 0; i < n; i++) {
+      headerRow.push(STORES[i], '');
+      subRow.push('R$ Unit.', 'R$ Total');
+      merges.push({s:{r:0,c:2+i*2}, e:{r:0,c:3+i*2}});
+    }
+    headerRow.push('Melhor Loja');
+    subRow.push('');
+
+    XLSX.utils.sheet_add_aoa(ws, [headerRow], {origin: 'A1'});
+    XLSX.utils.sheet_add_aoa(ws, [subRow], {origin: 'A2'});
+    ws['!merges'] = merges;
+
+    const dataArr = items.map(it => {
+      const row = [it.name, it.qty];
+      for (let si = 0; si < n; si++) {
+        row.push(it.prices[si] || 0, null);
+      }
+      row.push(null);
+      return row;
+    });
+    XLSX.utils.sheet_add_aoa(ws, dataArr, {origin: `A${startRow}`});
+
+    XLSX.utils.sheet_add_aoa(ws, [['TOTAL GERAL', '', ...new Array(n*2).fill(null), '']], {origin: `A${totalRow}`});
+    XLSX.utils.sheet_add_aoa(ws, [['Soma itens mais baratos por loja', '', ...new Array(n*2).fill(null), '']], {origin: `A${bestRow}`});
+
+    for (let i = 0; i < items.length; i++) {
+      const r = startRow + i;
+      for (let si = 0; si < n; si++) {
+        const colT = 3 + si * 2;
+        const colU = 2 + si * 2;
+        const ref = XLSX.utils.encode_cell({r: r-1, c: colT});
+        ws[ref] = {t: 'n', f: `${colLetter(1)}${r}*${colLetter(colU)}${r}`};
+      }
+      const colHelper = 2 + n * 2;
+      const helperRef = XLSX.utils.encode_cell({r: r-1, c: colHelper});
+      const totalCols = [];
+      for (let si = 0; si < n; si++) {
+        totalCols.push(`${colLetter(3+si*2)}${r}`);
+      }
+      const conditions = totalCols.map((c, i) =>
+        `IF(${c}=MIN(${totalCols.filter((_,j) => items[i].prices[j] > 0).join(',') || '0'}),"${STORES[i]}",`
+      ).join('');
+      ws[helperRef] = {t: 's', f: conditions + '"—"' + ')'.repeat(n)};
+    }
+
+    for (let si = 0; si < n; si++) {
+      const colT = 3 + si * 2;
+      const colL = colLetter(colT);
+      const tRef = XLSX.utils.encode_cell({r: totalRow-1, c: colT});
+      ws[tRef] = {t: 'n', f: `SUM(${colL}${startRow}:${colL}${endRow})`};
+
+      const bRef = XLSX.utils.encode_cell({r: bestRow-1, c: colT});
+      const helperCol = colLetter(2 + n * 2);
+      ws[bRef] = {t: 'n', f: `SUMIF(${helperCol}${startRow}:${helperCol}${endRow},"${STORES[si]}",${colL}${startRow}:${colL}${endRow})`};
+    }
+
+    const cols = [
+      {wch: 35}, {wch: 8},
+      ...Array(n).fill({wch: 12}).flatMap(c => [c, {wch: 12}]),
+      {wch: 14, hidden: true},
+    ];
+    ws['!cols'] = cols;
+    XLSX.utils.book_append_sheet(wb, ws, 'Cotação');
+
+    const capWs = XLSX.utils.aoa_to_sheet([]);
+    XLSX.utils.sheet_add_aoa(capWs, [['Mes', 'Funcionarios', 'Valor (R$)']], {origin: 'A1'});
+    XLSX.utils.sheet_add_aoa(capWs, getVisibleCap().map(r => [`${r.mes}/${r.ano}`, r.cap || 0, r.val || 0]), {origin: `A${capStart}`});
+    XLSX.utils.sheet_add_aoa(capWs, [['Total', null, null]], {origin: `A${capEnd+2}`});
+
+    const capTR = capEnd + 2;
+    const capAR = capEnd + 3;
+    const capB = XLSX.utils.encode_cell({r: capTR-1, c: 1});
+    const capC = XLSX.utils.encode_cell({r: capTR-1, c: 2});
+    capWs[capB] = {t: 'n', f: `SUM(B${capStart}:B${capEnd})`};
+    capWs[capC] = {t: 'n', f: `SUM(C${capStart}:C${capEnd})`};
+    XLSX.utils.sheet_add_aoa(capWs, [['Media', null, null]], {origin: `A${capAR}`});
+    const capAB = XLSX.utils.encode_cell({r: capAR-1, c: 1});
+    const capAC = XLSX.utils.encode_cell({r: capAR-1, c: 2});
+    capWs[capAB] = {t: 'n', f: `AVERAGE(B${capStart}:B${capEnd})`};
+    capWs[capAC] = {t: 'n', f: `AVERAGE(C${capStart}:C${capEnd})`};
+
+    capWs['!cols'] = [{wch: 14}, {wch: 16}, {wch: 16}];
+    XLSX.utils.book_append_sheet(wb, capWs, 'Capacity');
+
+    const wbout = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+    const blob = new Blob([wbout], {type:'application/octet-stream'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'cotacao_vistoria_bp.xlsx'; a.click();
+    URL.revokeObjectURL(url);
+    showToast('XLSX exportado');
+  } catch(e) {
+    showToast('⚠️ Erro XLSX: ' + e.message);
+    console.error(e);
+  }
+}
+
+function exportPDF() {
+  window.print();
+  showToast('Impressao aberta');
+}
+
+document.getElementById('currentDate').textContent =
+  new Date().toLocaleDateString('pt-BR', {day: '2-digit', month: 'long', year: 'numeric'});
+
+populateSelects();
+renderTable();
+renderCap();
+</script>
+
+</body>
+</html>
