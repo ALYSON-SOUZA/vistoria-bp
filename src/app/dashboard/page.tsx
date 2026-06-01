@@ -281,16 +281,28 @@ export default function DashboardPage() {
           </motion.div>
         </div>
 
-        {/* Nova Vistoria Button */}
-        <motion.button
-          type="button"
-          whileTap={{ scale: 0.98 }}
-          onClick={() => router.push("/inspections/new")}
-          className="w-full bg-action-primary text-white font-button-text text-button-text py-4 rounded-2xl flex items-center justify-center gap-2 uppercase tracking-widest custom-shadow active:scale-[0.98] transition-transform duration-150"
-        >
-          <Plus className="size-5 font-bold" />
-          NOVA VISTORIA
-        </motion.button>
+        {/* Action Buttons Side by Side */}
+        <div className="grid grid-cols-2 gap-3">
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.98 }}
+            onClick={() => router.push("/inspections/new")}
+            className="w-full bg-action-primary text-white font-button-text text-button-text py-4 rounded-2xl flex items-center justify-center gap-2 uppercase tracking-widest custom-shadow active:scale-[0.98] transition-transform duration-150"
+          >
+            <Plus className="size-5 font-bold" />
+            NOVA VISTORIA
+          </motion.button>
+
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.98 }}
+            onClick={() => window.open("/cotacao_materiais.html", "_blank")}
+            className="w-full bg-primary text-white font-button-text text-button-text py-4 rounded-2xl flex items-center justify-center gap-2 uppercase tracking-widest custom-shadow active:scale-[0.98] transition-transform duration-150"
+          >
+            <ClipboardCheck className="size-5 font-bold" />
+            COTAÇÃO DE MATERIAIS
+          </motion.button>
+        </div>
 
         {/* Recent Inspections */}
         <section className="space-y-3">
